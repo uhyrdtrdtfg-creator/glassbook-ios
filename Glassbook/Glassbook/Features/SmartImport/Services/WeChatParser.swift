@@ -15,6 +15,7 @@ struct WeChatParser: PlatformParser {
     func parse(lines: [String]) -> [PendingImportRow] {
         var rows: [PendingImportRow] = []
         let year = Calendar.current.component(.year, from: Date())
+        let summaryIndices = ParserKit.summaryAmountIndices(lines)
 
         var i = 0
         while i < lines.count {
@@ -24,10 +25,13 @@ struct WeChatParser: PlatformParser {
                 || ParserKit.looksLikeDateOrTime(line) {
                 i += 1; continue
             }
-            if ParserKit.extractAmountCents(from: line) != nil { i += 1; continue }
+            if ParserKit.extractAmountCents(from: line) != nil || summaryIndices.contains(i) {
+                i += 1; continue
+            }
 
             guard let amountIdx = ParserKit.findAmountIndex(in: lines, from: i + 1,
-                                                            maxLookAhead: 2) else {
+                                                            maxLookAhead: 2,
+                                                            excluding: summaryIndices) else {
                 i += 1; continue
             }
             guard let amount = ParserKit.extractAmountCents(from: lines[amountIdx]) else {

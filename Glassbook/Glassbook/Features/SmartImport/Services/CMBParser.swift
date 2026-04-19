@@ -15,6 +15,7 @@ struct CMBParser: PlatformParser {
     func parse(lines: [String]) -> [PendingImportRow] {
         var rows: [PendingImportRow] = []
         let year = Calendar.current.component(.year, from: Date())
+        let summaryIndices = ParserKit.summaryAmountIndices(lines)
 
         var i = 0
         while i < lines.count {
@@ -27,7 +28,8 @@ struct CMBParser: PlatformParser {
 
             guard let amountIdx = ParserKit.findAmountIndex(in: lines, from: i + 1,
                                                             maxLookAhead: 2,
-                                                            assumeExpense: false) else {
+                                                            assumeExpense: false,
+                                                            excluding: summaryIndices) else {
                 i += 1; continue
             }
             guard let amount = ParserKit.extractAmountCents(from: lines[amountIdx], assumeExpense: false) else {

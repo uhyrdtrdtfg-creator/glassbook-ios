@@ -59,6 +59,37 @@ enum ParserKit {
         return chips.contains(t)
     }
 
+    /// Compute the set of line indices whose amount is a *summary* total —
+    /// the one that follows a "支出 / 收入 / 本月合计 / 总计 / Total" label.
+    /// Parsers use this to avoid minting phantom transactions from the top-of-
+    /// screen stat block (e.g. Alipay shows "支出 ¥2,870.98" above the list).
+    /// Also handles inline combined forms like "支出¥5197.04".
+    static func summaryAmountIndices(_ lines: [String]) -> Set<Int> {
+        let labels: Set<String> = [
+            "支出", "收入", "总计", "小计", "汇总",
+            "本月支出", "本月收入", "本月合计", "本月总计",
+            "Total", "TOTAL", "总支出", "总收入",
+        ]
+        var out: Set<Int> = []
+        for i in 0..<lines.count {
+            let t = lines[i].trimmingCharacters(in: .whitespaces)
+            // Exact-match label on its own line → next line is the summary amount.
+            if labels.contains(t), i + 1 < lines.count { out.insert(i + 1) }
+            // Inline summary: "支出¥5197.04" / "收入¥60.00" all on one line
+            // — the amount is embedded so mark *this* index as summary.
+            for label in ["支出", "收入", "本月支出", "本月收入", "总计", "小计"] {
+                if t.hasPrefix(label) && t.count > label.count {
+                    // look for a digit after the label; if present, it's inline summary
+                    let rest = t.dropFirst(label.count).trimmingCharacters(in: .whitespaces)
+                    if rest.contains("¥") || rest.range(of: #"\d"#, options: .regularExpression) != nil {
+                        out.insert(i)
+                    }
+                }
+            }
+        }
+        return out
+    }
+
     /// Matches `2026-04-19 12:04:32` / `2026/04/19 12:04` / `04-19 08:12` / `04/19 8:12`
     /// plus the Chinese form `4月19日 19:13` and `4月19日 19:13:00`.
     static let timeRegex = try! NSRegularExpression(
@@ -109,7 +140,8 @@ enum ParserKit {
 
     /// Scan `lines[start…]` up to `maxLookAhead` ahead for the first line that
     /// yields a parseable amount. STRICT: only empty lines and status chips
-    /// are skippable; any other non-amount line aborts the search.
+    /// are skippable; any other non-amount line aborts the search. Indices
+    /// in `excluding` (summary-total amounts) are always rejected.
     ///
     /// Why strict: in real bill layouts the merchant and amount sit on the
     /// same row visually, and Vision emits them as adjacent lines. Leniency
@@ -117,12 +149,14 @@ enum ParserKit {
     /// month-total amount ("4月" + "¥ 2,870.98"), producing phantoms.
     static func findAmountIndex(in lines: [String], from start: Int,
                                 maxLookAhead: Int = 2,
-                                assumeExpense: Bool = true) -> Int? {
+                                assumeExpense: Bool = true,
+                                excluding: Set<Int> = []) -> Int? {
         let end = min(lines.count - 1, start + maxLookAhead)
         guard start <= end else { return nil }
         for i in start...end {
             let t = lines[i].trimmingCharacters(in: .whitespaces)
             if t.isEmpty || looksLikeStatusChip(t) { continue }
+            if excluding.contains(i) { return nil }  // summary amount — bail
             if extractAmountCents(from: t, assumeExpense: assumeExpense) != nil {
                 return i
             }

@@ -5,6 +5,7 @@ struct GoalsView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var selected: SavingsGoal?
+    @State private var showAdd = false
 
     var body: some View {
         ZStack {
@@ -15,6 +16,7 @@ struct GoalsView: View {
                     header
                     totalCard
                     goalGrid
+                    addButton
                     Spacer().frame(height: 40)
                 }
                 .padding(.horizontal, 18)
@@ -27,6 +29,23 @@ struct GoalsView: View {
                 .environment(store)
                 .presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: $showAdd) {
+            AddGoalSheet().environment(store)
+                .presentationDetents([.large])
+        }
+    }
+
+    private var addButton: some View {
+        Button { showAdd = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "plus.circle").font(.system(size: 14))
+                Text("新增储蓄目标").font(.system(size: 13, weight: .medium))
+            }
+            .foregroundStyle(AppColors.ink)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .glassCard(radius: 14)
+        }
+        .buttonStyle(.plain)
     }
 
     private var header: some View {
@@ -40,7 +59,12 @@ struct GoalsView: View {
             Spacer()
             Text("储蓄目标").font(.system(size: 16, weight: .medium))
             Spacer()
-            Spacer().frame(width: 34)
+            Button { showAdd = true } label: {
+                Image(systemName: "plus").font(.system(size: 13, weight: .medium))
+                    .frame(width: 34, height: 34)
+                    .glassCard(radius: 12)
+                    .foregroundStyle(AppColors.ink)
+            }
         }
     }
 

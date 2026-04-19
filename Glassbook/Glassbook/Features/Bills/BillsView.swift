@@ -113,6 +113,18 @@ struct BillsView: View {
                         ForEach(Array(filtered.enumerated()), id: \.element.id) { idx, tx in
                             if idx > 0 { Divider().background(AppColors.glassDivider).padding(.horizontal, 10) }
                             TransactionRow(tx: tx, compact: true)
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        store.delete(tx.id)
+                                    } label: {
+                                        Label("删除", systemImage: "trash")
+                                    }
+                                    Button {
+                                        UIPasteboard.general.string = "\(tx.merchant) \(Money.yuan(tx.amountCents, showDecimals: true))"
+                                    } label: {
+                                        Label("复制", systemImage: "doc.on.doc")
+                                    }
+                                }
                         }
                     }
                     .padding(8)

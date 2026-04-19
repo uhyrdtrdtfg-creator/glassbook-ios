@@ -4,6 +4,7 @@ import SwiftUI
 struct SubscriptionsView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @State private var showAdd = false
 
     var body: some View {
         ZStack {
@@ -19,6 +20,7 @@ struct SubscriptionsView: View {
                         .padding(.horizontal, 4)
                         .padding(.top, 4)
                     subscriptionList
+                    addButton
                     Spacer().frame(height: 40)
                 }
                 .padding(.horizontal, 18)
@@ -26,6 +28,23 @@ struct SubscriptionsView: View {
             }
             .scrollIndicators(.hidden)
         }
+        .sheet(isPresented: $showAdd) {
+            AddSubscriptionSheet().environment(store)
+                .presentationDetents([.large])
+        }
+    }
+
+    private var addButton: some View {
+        Button { showAdd = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "plus.circle").font(.system(size: 14))
+                Text("添加订阅").font(.system(size: 13, weight: .medium))
+            }
+            .foregroundStyle(AppColors.ink)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .glassCard(radius: 14)
+        }
+        .buttonStyle(.plain)
     }
 
     private var header: some View {
@@ -39,7 +58,12 @@ struct SubscriptionsView: View {
             Spacer()
             Text("订阅管理").font(.system(size: 16, weight: .medium))
             Spacer()
-            Spacer().frame(width: 34)
+            Button { showAdd = true } label: {
+                Image(systemName: "plus").font(.system(size: 13, weight: .medium))
+                    .frame(width: 34, height: 34)
+                    .glassCard(radius: 12)
+                    .foregroundStyle(AppColors.ink)
+            }
         }
     }
 

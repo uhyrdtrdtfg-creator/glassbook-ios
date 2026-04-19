@@ -16,6 +16,7 @@ struct AlipayParser: PlatformParser {
     func parse(lines: [String]) -> [PendingImportRow] {
         var rows: [PendingImportRow] = []
         let year = Calendar.current.component(.year, from: Date())
+        let summaryIndices = ParserKit.summaryAmountIndices(lines)
 
         var i = 0
         while i < lines.count {
@@ -27,11 +28,15 @@ struct AlipayParser: PlatformParser {
             }
 
             // Merchants with digits alone don't exist in Alipay — if the line
-            // is an amount itself, skip it (not a merchant).
-            if ParserKit.extractAmountCents(from: line) != nil { i += 1; continue }
+            // is an amount itself, skip it (not a merchant). Also skip lines
+            // flagged as summary totals (the "支出 ¥2,870.98" row above the list).
+            if ParserKit.extractAmountCents(from: line) != nil || summaryIndices.contains(i) {
+                i += 1; continue
+            }
 
             guard let amountIdx = ParserKit.findAmountIndex(in: lines, from: i + 1,
-                                                            maxLookAhead: 2) else {
+                                                            maxLookAhead: 2,
+                                                            excluding: summaryIndices) else {
                 i += 1; continue
             }
             guard let amount = ParserKit.extractAmountCents(from: lines[amountIdx]) else {

@@ -139,22 +139,31 @@ final class AdvisorChatService {
         .init(role: .assistant, content: content, toolName: toolName, toolResult: toolResult)
     }
 
-    // MARK: - Remote (real LLM) — scaffolded
+    // MARK: - Remote (real LLM) — HTTP through LLMClient
 
     private func remoteRespond(to q: String, engine: AIEngineStore.Engine) async throws -> Message {
-        // Production: construct OpenAI-compatible payload, POST to `config.baseURL + /chat/completions`,
-        // parse the response. For scaffold demonstration we just route to local.
-        // Leaving the shape here so the next iteration can fill in URLSession.
-        //
-        //   let url = URL(string: engineStore.config(for: engine).baseURL + "/chat/completions")!
-        //   var req = URLRequest(url: url)
-        //   req.httpMethod = "POST"
-        //   req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        //   req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        //   req.httpBody = try JSONEncoder().encode(payload)
-        //   let (data, _) = try await URLSession.shared.data(for: req)
-        //
-        return await localRespond(to: q)
+        // Build a compact system prompt with current financial snapshot so the
+        // model has real numbers without needing tool calls.
+        let systemPrompt = """
+        你是 Glassbook 用户 \(store.userName) 的记账助手。以下是本月实时数据:
+        • 本月总支出: \(Money.yuan(store.thisMonthExpenseCents, showDecimals: false))
+        • 预算剩余: \(Money.yuan(store.budgetRemainingCents, showDecimals: false)) (已用 \(Int(store.budgetUsedPercent * 100))%)
+        • 日均支出: \(Money.yuan(store.thisMonthDailyAverageCents, showDecimals: false))
+        • 订阅支出: \(Money.yuan(store.monthlySubscriptionTotalCents, showDecimals: false))/月, 其中 \(store.subscriptions.filter { $0.zombieLevel != .active }.count) 项闲置 30+ 天
+        • 顶部分类: \(store.expensesByCategory(in: Date()).prefix(3).map { "\($0.0.name) \(Money.yuan($0.1, showDecimals: false))" }.joined(separator: ", "))
+        • 较上月: \(String(format: "%.1f%%", store.monthOverMonthChangePct * 100))
+
+        以中文回答,简短直接,给具体数字。不要加 emoji。
+        """
+
+        let reply = try await LLMClient.chat(
+            engine: engine,
+            messages: [
+                .init(role: "system", content: systemPrompt),
+                .init(role: "user", content: q),
+            ]
+        )
+        return .init(role: .assistant, content: reply)
     }
 
     // MARK: - Helpers
