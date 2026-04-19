@@ -100,11 +100,14 @@ targets:
 
 schemes:
   Glassbook:
+    # Archive action should produce a proper "iOS App Archive" (not Generic).
+    # Watch target is excluded from archive — it's a standalone companion that
+    # pairs via iCloud, not embedded in the iOS IPA for this scaffold.
     build:
       targets:
-        Glassbook: all
-        GlassbookWidget: all
-        GlassbookWatch: all
+        Glassbook: [run, test, analyze, archive, profile]
+        GlassbookWidget: [run, test, analyze, archive, profile]
+        GlassbookWatch: [run]
         GlassbookTests: [test]
     test:
       gatherCoverageData: true

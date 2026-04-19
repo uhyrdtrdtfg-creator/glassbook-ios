@@ -8,9 +8,11 @@ struct AlipayParser: PlatformParser {
         return joined.contains("支付宝") || joined.contains("Alipay") || joined.contains("余额宝")
     }
 
-    /// Alipay bill screenshots typically show [merchant] → [amount] → [timestamp]
-    /// as a repeating triple. We walk the OCR lines and glue together each triple
-    /// that contains a parseable amount.
+    /// Alipay bill layout (real screenshots):
+    ///   [merchant] → [amount] → [category label] → [date]
+    /// The category line (日用百货 / 投资理财 / 转账红包) would otherwise be
+    /// picked up on the next iteration and paired with the *following* row's
+    /// time, producing phantoms. We consume all four lines once we've matched.
     func parse(lines: [String]) -> [PendingImportRow] {
         var rows: [PendingImportRow] = []
         let year = Calendar.current.component(.year, from: Date())
@@ -18,32 +20,40 @@ struct AlipayParser: PlatformParser {
         var i = 0
         while i < lines.count {
             let line = lines[i].trimmingCharacters(in: .whitespaces)
-            if line.isEmpty || isPlatformNoise(line) { i += 1; continue }
+            if line.isEmpty || isPlatformNoise(line)
+                || ParserKit.looksLikeStatusChip(line)
+                || ParserKit.looksLikeDateOrTime(line) {
+                i += 1; continue
+            }
 
-            // Try to find an amount within this line OR the next.
-            let merchantLine = line
-            var amountLine: String?
-            var timeLine: String?
-            var consumed = 1
+            // Merchants with digits alone don't exist in Alipay — if the line
+            // is an amount itself, skip it (not a merchant).
+            if ParserKit.extractAmountCents(from: line) != nil { i += 1; continue }
 
-            if i + 1 < lines.count, ParserKit.extractAmountCents(from: lines[i+1]) != nil {
-                amountLine = lines[i+1]; consumed += 1
-                if i + 2 < lines.count, ParserKit.extractDate(from: lines[i+2], defaultYear: year) != nil {
-                    timeLine = lines[i+2]; consumed += 1
+            guard let amountIdx = ParserKit.findAmountIndex(in: lines, from: i + 1,
+                                                            maxLookAhead: 2) else {
+                i += 1; continue
+            }
+            guard let amount = ParserKit.extractAmountCents(from: lines[amountIdx]) else {
+                i += 1; continue
+            }
+
+            // Scan forward up to 2 lines for a date after the amount. Lines
+            // between amount and date are usually the category label. Guard
+            // the range — last parsed row may have nothing after the amount.
+            var date: Date?
+            var dateIdx = amountIdx
+            let dateStart = amountIdx + 1
+            let dateEnd = min(amountIdx + 3, lines.count - 1)
+            if dateStart <= dateEnd {
+                for j in dateStart...dateEnd {
+                    if let d = ParserKit.extractDate(from: lines[j], defaultYear: year) {
+                        date = d; dateIdx = j; break
+                    }
                 }
-            } else if ParserKit.extractAmountCents(from: merchantLine) != nil {
-                // merchant and amount on the same line — can't happen for alipay typically, skip
-                i += 1; continue
-            } else {
-                i += 1; continue
             }
 
-            guard let amount = amountLine.flatMap({ ParserKit.extractAmountCents(from: $0) }) else {
-                i += consumed; continue
-            }
-
-            let date = timeLine.flatMap { ParserKit.extractDate(from: $0, defaultYear: year) } ?? Date()
-            let merchant = merchantLine
+            let merchant = line
             let category = MerchantClassifier.shared.classify(merchant: merchant)
 
             rows.append(PendingImportRow(
@@ -51,18 +61,26 @@ struct AlipayParser: PlatformParser {
                 merchant: merchant,
                 amountCents: amount.cents,
                 categoryID: category,
-                timestamp: date,
+                timestamp: date ?? Date(),
                 source: platform,
                 isDuplicate: false,
                 isSelected: true
             ))
-            i += consumed
+            // Consume up through the date line so the next iteration doesn't
+            // re-interpret the category label as a merchant.
+            i = max(dateIdx + 1, amountIdx + 1)
         }
         return rows
     }
 
     private func isPlatformNoise(_ s: String) -> Bool {
-        let noise = ["支付宝", "Alipay", "账单", "明细", "月报", "—", "总支出", "总收入"]
-        return noise.contains(where: { s == $0 || s.hasPrefix($0) && s.count < $0.count + 3 })
+        let exact = ["支付宝", "Alipay", "账单", "明细", "月报", "—", "总支出", "总收入",
+                     "全部", "支出", "收入", "转账", "退款", "订单", "筛选",
+                     "搜索", "搜索交易记录", "贴纸新功能", "复盘本周收支",
+                     "设置支出预算", "收支分析",
+                     // Alipay header chrome from screenshots
+                     "4月", "5月", "6月", "7月", "8月", "9月",
+                     "10月", "11月", "12月", "1月", "2月", "3月"]
+        return exact.contains(s)
     }
 }

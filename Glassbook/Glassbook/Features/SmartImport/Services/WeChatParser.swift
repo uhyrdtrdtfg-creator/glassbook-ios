@@ -8,8 +8,10 @@ struct WeChatParser: PlatformParser {
         return joined.contains("微信支付") || joined.contains("WeChat Pay") || joined.contains("零钱")
     }
 
-    /// WeChat bill layout closely mirrors Alipay's — merchant / amount / short date.
-    /// Dates are usually "MM-DD HH:mm" (year omitted).
+    /// WeChat bill layout (real screenshots):
+    ///   [merchant] → [amount] → [date "4月19日 19:13"]
+    /// Uses the shared forward-scan helper so a stray "2026年4月" or status-bar
+    /// time line doesn't yank the pairing out of alignment.
     func parse(lines: [String]) -> [PendingImportRow] {
         var rows: [PendingImportRow] = []
         let year = Calendar.current.component(.year, from: Date())
@@ -17,15 +19,31 @@ struct WeChatParser: PlatformParser {
         var i = 0
         while i < lines.count {
             let line = lines[i].trimmingCharacters(in: .whitespaces)
-            if line.isEmpty || isPlatformNoise(line) { i += 1; continue }
-
-            guard i + 1 < lines.count else { i += 1; continue }
-            let amountLine = lines[i+1]
-            guard let amount = ParserKit.extractAmountCents(from: amountLine, assumeExpense: true) else {
+            if line.isEmpty || isPlatformNoise(line)
+                || ParserKit.looksLikeStatusChip(line)
+                || ParserKit.looksLikeDateOrTime(line) {
                 i += 1; continue
             }
-            let timeLine = i + 2 < lines.count ? lines[i+2] : ""
-            let date = ParserKit.extractDate(from: timeLine, defaultYear: year) ?? Date()
+            if ParserKit.extractAmountCents(from: line) != nil { i += 1; continue }
+
+            guard let amountIdx = ParserKit.findAmountIndex(in: lines, from: i + 1,
+                                                            maxLookAhead: 2) else {
+                i += 1; continue
+            }
+            guard let amount = ParserKit.extractAmountCents(from: lines[amountIdx]) else {
+                i += 1; continue
+            }
+            var date: Date?
+            var dateIdx = amountIdx
+            let dateStart = amountIdx + 1
+            let dateEnd = min(amountIdx + 2, lines.count - 1)
+            if dateStart <= dateEnd {
+                for j in dateStart...dateEnd {
+                    if let d = ParserKit.extractDate(from: lines[j], defaultYear: year) {
+                        date = d; dateIdx = j; break
+                    }
+                }
+            }
 
             let merchant = line
             let category = MerchantClassifier.shared.classify(merchant: merchant)
@@ -35,18 +53,19 @@ struct WeChatParser: PlatformParser {
                 merchant: merchant,
                 amountCents: amount.cents,
                 categoryID: category,
-                timestamp: date,
+                timestamp: date ?? Date(),
                 source: platform,
                 isDuplicate: false,
                 isSelected: true
             ))
-            i += 3
+            i = max(dateIdx + 1, amountIdx + 1)
         }
         return rows
     }
 
     private func isPlatformNoise(_ s: String) -> Bool {
-        let noise = ["微信", "微信支付", "账单明细", "钱包", "零钱", "月账单"]
+        let noise = ["微信", "微信支付", "账单", "账单明细", "钱包", "零钱",
+                     "月账单", "全部账单", "查找交易", "收支统计"]
         return noise.contains(s)
     }
 }

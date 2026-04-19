@@ -359,4 +359,7 @@ struct PendingImportRow: Identifiable, Hashable {
     var source: ImportBatch.Platform
     var isDuplicate: Bool
     var isSelected: Bool
+    /// Free-form annotations carried over from OCR (e.g. CMB "未入账" status
+    /// chip, platform flags). Shown as a subtitle on the confirm screen.
+    var note: String? = nil
 }
