@@ -1,0 +1,127 @@
+name: Glassbook
+options:
+  bundleIdPrefix: app.glassbook
+  deploymentTarget:
+    iOS: "17.0"
+    watchOS: "10.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  developmentLanguage: zh-Hans
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "1.0"
+    ENABLE_PREVIEWS: YES
+
+targets:
+  Glassbook:
+    type: application
+    platform: iOS
+    sources:
+      - path: Glassbook
+    dependencies:
+      - target: GlassbookWidget
+        embed: true
+      # Watch companion is its own target — keep it decoupled from the iOS app
+      # build so CI / machines without the watchOS SDK can still test.
+      # When shipping, re-enable `embed: true` after installing watchOS 11.x.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.glassbook.ios
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Glassbook
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UIStatusBarStyle: UIStatusBarStyleDarkContent
+        INFOPLIST_KEY_NSFaceIDUsageDescription: "Glassbook 使用 Face ID 保护你的财务数据。"
+        INFOPLIST_KEY_NSCameraUsageDescription: "拍摄收据以自动识别金额与商户。"
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "从相册选择收据截图以自动识别记账。"
+        INFOPLIST_KEY_NSSupportsLiveActivities: YES
+        INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates: YES
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        DEVELOPMENT_ASSET_PATHS: "\"Glassbook/Preview Content\""
+        CODE_SIGN_ENTITLEMENTS: Glassbook/Glassbook.entitlements
+        # Mac Catalyst — iOS app can build & run on macOS via Catalyst.
+        # iPad support intentionally disabled (TARGETED_DEVICE_FAMILY=1).
+        SUPPORTS_MACCATALYST: YES
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER: YES
+
+  GlassbookWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: GlassbookWidget
+        excludes:
+          - "Info.plist"
+      # Share ActivityAttributes so widget UI can decode Live Activity state.
+      - path: Glassbook/ActivityAttributes
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.glassbook.ios.widget
+        INFOPLIST_FILE: GlassbookWidget/Info.plist
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: "1"
+
+  GlassbookWatch:
+    type: application
+    platform: watchOS
+    deploymentTarget: "10.0"
+    sources:
+      - path: GlassbookWatch
+        excludes:
+          - "Info.plist"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.glassbook.ios.watchkitapp
+        INFOPLIST_FILE: GlassbookWatch/Info.plist
+        SKIP_INSTALL: NO
+        TARGETED_DEVICE_FAMILY: "4"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  GlassbookTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: GlassbookTests
+    dependencies:
+      - target: Glassbook
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: app.glassbook.ios.tests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Glassbook.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Glassbook"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+schemes:
+  Glassbook:
+    build:
+      targets:
+        Glassbook: all
+        GlassbookWidget: all
+        GlassbookWatch: all
+        GlassbookTests: [test]
+    test:
+      gatherCoverageData: true
+      coverageTargets:
+        - Glassbook
+      targets:
+        - GlassbookTests
+  # Test-only scheme that skips watchOS so CI / local boxes without the
+  # watchOS SDK installed can still run the unit tests.
+  GlassbookCI:
+    build:
+      targets:
+        Glassbook: all
+        GlassbookTests: [test]
+    test:
+      gatherCoverageData: true
+      coverageTargets:
+        - Glassbook
+      targets:
+        - GlassbookTests

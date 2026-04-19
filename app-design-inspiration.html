@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>App 设计灵感参考册 · 零基础也能看懂的"高级感"</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --ink: #111;
+    --ink-2: #555;
+    --ink-3: #8a8a8a;
+    --line: #ececec;
+    --bg: #fafaf7;
+  }
+  html, body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 80px 40px 120px; }
+  .eyebrow {
+    font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-3); margin-bottom: 24px;
+  }
+  h1 {
+    font-size: 56px; font-weight: 300; letter-spacing: -0.02em;
+    line-height: 1.1; margin-bottom: 24px;
+  }
+  h1 em { font-style: normal; font-weight: 500; }
+  .lede { font-size: 20px; color: var(--ink-2); max-width: 680px; font-weight: 300; }
+  .divider { height: 1px; background: var(--line); margin: 80px 0; }
+
+  /* ——— 设计原则 ——— */
+  .principles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; background: var(--line); }
+  .principle { background: var(--bg); padding: 32px 24px; }
+  .principle .num { font-size: 12px; color: var(--ink-3); margin-bottom: 16px; font-variant-numeric: tabular-nums; }
+  .principle h4 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+  .principle p { font-size: 14px; color: var(--ink-2); line-height: 1.6; }
+
+  /* ——— 风格区块 ——— */
+  .style-section { margin-top: 100px; }
+  .style-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+  .style-header .title { font-size: 32px; font-weight: 400; letter-spacing: -0.01em; }
+  .style-header .chip { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-3); padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; }
+  .showcase { display: grid; grid-template-columns: 320px 1fr; gap: 60px; align-items: start; }
+
+  /* ——— 手机外壳通用 ——— */
+  .phone {
+    width: 320px; height: 650px; border-radius: 46px;
+    background: #000; padding: 10px;
+    box-shadow: 0 40px 80px -20px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.05);
+    position: relative;
+  }
+  .phone::before {
+    content: ""; position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
+    width: 100px; height: 28px; background: #000; border-radius: 20px; z-index: 10;
+  }
+  .screen {
+    width: 100%; height: 100%; border-radius: 38px; overflow: hidden; position: relative;
+  }
+  .statusbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 48px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 32px 0; font-size: 14px; font-weight: 600;
+    font-variant-numeric: tabular-nums; z-index: 5;
+  }
+
+  /* ——— 风格 1：极简黑白 ——— */
+  .s1 .screen { background: #fff; color: #111; }
+  .s1 .statusbar { color: #111; }
+  .s1 .content { padding: 70px 24px 24px; }
+  .s1 .date { font-size: 12px; letter-spacing: 0.15em; text-transform: uppercase; color: #999; margin-bottom: 8px; }
+  .s1 .greet { font-size: 32px; font-weight: 300; letter-spacing: -0.01em; margin-bottom: 40px; }
+  .s1 .greet strong { font-weight: 500; }
+  .s1 .task { padding: 16px 0; border-top: 1px solid #f0f0f0; display: flex; align-items: center; gap: 14px; }
+  .s1 .task:last-child { border-bottom: 1px solid #f0f0f0; }
+  .s1 .check { width: 18px; height: 18px; border: 1.5px solid #ccc; border-radius: 50%; flex-shrink: 0; }
+  .s1 .task.done .check { background: #111; border-color: #111; position: relative; }
+  .s1 .task.done .check::after { content: ""; position: absolute; top: 5px; left: 4px; width: 8px; height: 4px; border-left: 1.5px solid #fff; border-bottom: 1.5px solid #fff; transform: rotate(-45deg); }
+  .s1 .task .label { font-size: 15px; }
+  .s1 .task.done .label { color: #bbb; text-decoration: line-through; }
+  .s1 .task .time { margin-left: auto; font-size: 12px; color: #999; font-variant-numeric: tabular-nums; }
+  .s1 .fab { position: absolute; bottom: 40px; right: 24px; width: 56px; height: 56px; background: #111; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; font-weight: 200; }
+
+  /* ——— 风格 2：深色奢华 ——— */
+  .s2 .screen { background: #0d0d0f; color: #e8e6e0; }
+  .s2 .statusbar { color: #e8e6e0; }
+  .s2 .content { padding: 70px 24px 24px; }
+  .s2 .label-top { font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: #c9a961; margin-bottom: 12px; }
+  .s2 .balance { font-size: 44px; font-weight: 200; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin-bottom: 6px; }
+  .s2 .balance .currency { font-size: 20px; vertical-align: top; color: #8a8176; margin-right: 4px; }
+  .s2 .delta { font-size: 13px; color: #7fb069; margin-bottom: 40px; }
+  .s2 .card { background: linear-gradient(135deg, #1a1a1d 0%, #131316 100%); border: 1px solid #24242a; border-radius: 14px; padding: 18px; margin-bottom: 12px; display: flex; align-items: center; gap: 14px; }
+  .s2 .card .dot { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #c9a961, #8a6f3a); flex-shrink: 0; }
+  .s2 .card .info { flex: 1; }
+  .s2 .card .t1 { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+  .s2 .card .t2 { font-size: 11px; color: #6b6860; letter-spacing: 0.05em; }
+  .s2 .card .amt { font-size: 14px; font-variant-numeric: tabular-nums; color: #e8e6e0; }
+  .s2 .tabbar { position: absolute; bottom: 0; left: 0; right: 0; height: 72px; background: rgba(13,13,15,0.85); backdrop-filter: blur(20px); border-top: 1px solid #1f1f23; display: flex; justify-content: space-around; align-items: center; padding-bottom: 16px; }
+  .s2 .tab { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #555; }
+  .s2 .tab.active { color: #c9a961; }
+
+  /* ——— 风格 3：莫兰迪柔和 ——— */
+  .s3 .screen { background: linear-gradient(180deg, #f4ede3 0%, #e8dfd1 100%); color: #3d342a; }
+  .s3 .statusbar { color: #3d342a; }
+  .s3 .content { padding: 70px 26px 24px; }
+  .s3 .hello { font-family: Georgia, "Times New Roman", serif; font-size: 28px; font-style: italic; font-weight: 400; margin-bottom: 4px; color: #5a4a3a; }
+  .s3 .sub { font-size: 13px; color: #8a7a6a; margin-bottom: 32px; }
+  .s3 .mood-card { background: #fff8ed; border-radius: 20px; padding: 22px; margin-bottom: 16px; box-shadow: 0 1px 0 rgba(255,255,255,0.8) inset, 0 8px 24px -8px rgba(90,74,58,0.12); }
+  .s3 .mood-card .mc-label { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #a8947a; margin-bottom: 10px; }
+  .s3 .mood-card .mc-title { font-size: 18px; font-weight: 500; margin-bottom: 14px; color: #5a4a3a; }
+  .s3 .bar-row { display: flex; gap: 6px; align-items: flex-end; height: 48px; }
+  .s3 .bar { flex: 1; background: #d4bfa3; border-radius: 4px 4px 2px 2px; opacity: 0.55; }
+  .s3 .bar.hi { opacity: 1; background: #b89974; }
+  .s3 .pill-row { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+  .s3 .pill { padding: 8px 14px; background: rgba(255,255,255,0.6); border-radius: 999px; font-size: 12px; color: #6a5a48; border: 1px solid rgba(138,122,106,0.15); }
+
+  /* ——— 风格 4：玻璃拟态 ——— */
+  .s4 .screen {
+    background:
+      radial-gradient(circle at 20% 10%, #ff9a7b 0%, transparent 40%),
+      radial-gradient(circle at 80% 20%, #7ea8ff 0%, transparent 45%),
+      radial-gradient(circle at 50% 80%, #c48aff 0%, transparent 50%),
+      linear-gradient(180deg, #fde4d0 0%, #dfe8ff 100%);
+    color: #1a1a2e;
+  }
+  .s4 .statusbar { color: #1a1a2e; }
+  .s4 .content { padding: 70px 20px 24px; }
+  .s4 .glass {
+    background: rgba(255,255,255,0.38);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 24px;
+    padding: 20px;
+    box-shadow: 0 8px 32px rgba(100,80,140,0.12);
+    margin-bottom: 14px;
+  }
+  .s4 .weather { text-align: center; padding: 28px 20px; }
+  .s4 .temp { font-size: 64px; font-weight: 200; letter-spacing: -0.04em; line-height: 1; }
+  .s4 .temp sup { font-size: 28px; font-weight: 300; vertical-align: top; }
+  .s4 .loc { font-size: 14px; color: #4a4a5e; margin-top: 6px; }
+  .s4 .cond { font-size: 12px; color: #6a6a7e; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 10px; }
+  .s4 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .s4 .row2 .glass { margin-bottom: 0; padding: 16px; }
+  .s4 .row2 .k { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: #6a6a7e; margin-bottom: 8px; }
+  .s4 .row2 .v { font-size: 22px; font-weight: 300; font-variant-numeric: tabular-nums; }
+  .s4 .hourly { display: flex; justify-content: space-between; padding: 14px 18px; }
+  .s4 .hour { text-align: center; }
+  .s4 .hour .h { font-size: 11px; color: #6a6a7e; margin-bottom: 4px; }
+  .s4 .hour .t { font-size: 14px; font-weight: 500; }
+
+  /* ——— 说明卡 ——— */
+  .notes { padding-top: 16px; }
+  .notes .intro { font-size: 15px; color: var(--ink-2); margin-bottom: 28px; max-width: 560px; }
+  .spec { display: grid; grid-template-columns: 90px 1fr; gap: 12px 20px; font-size: 13px; margin-bottom: 28px; }
+  .spec dt { color: var(--ink-3); letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px; padding-top: 3px; }
+  .spec dd { color: var(--ink); }
+  .palette { display: flex; gap: 10px; margin-top: 6px; }
+  .swatch { width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--line); }
+  .tag-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .tag { font-size: 11px; padding: 4px 10px; background: #f0ede4; color: #555; border-radius: 4px; letter-spacing: 0.03em; }
+  .fit-for { padding: 16px 20px; background: #fff; border-left: 2px solid var(--ink); font-size: 13px; line-height: 1.7; color: var(--ink-2); }
+  .fit-for strong { color: var(--ink); font-weight: 500; }
+
+  /* ——— 末尾建议 ——— */
+  .tip-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-top: 40px; }
+  .tip { padding: 28px; background: #fff; border: 1px solid var(--line); }
+  .tip .tag { background: #111; color: #fff; }
+  .tip h4 { font-size: 18px; font-weight: 500; margin: 14px 0 10px; }
+  .tip p { font-size: 14px; color: var(--ink-2); line-height: 1.7; }
+
+  footer { margin-top: 100px; padding-top: 40px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-3); letter-spacing: 0.05em; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">Design Inspiration · 设计灵感参考册</div>
+  <h1>什么是<em>"高级感"</em>？<br>零基础也能看懂的 4 种优雅风格</h1>
+  <p class="lede">"高级感"不是靠炫技堆出来的，它来自克制——克制的颜色、克制的字体、克制的装饰。下面是 4 种主流的优雅设计风格，每一种都配有真实界面示例，你可以从中挑选最打动你的方向。</p>
+
+  <div class="divider"></div>
+
+  <div class="eyebrow">4 条通用原则 · 无论选哪种风格都适用</div>
+  <div class="principles" style="margin-top:24px;">
+    <div class="principle">
+      <div class="num">01</div>
+      <h4>留白即呼吸</h4>
+      <p>元素之间多留空间，至少是你直觉认为"够了"的 1.5 倍。拥挤是廉价感的首要来源。</p>
+    </div>
+    <div class="principle">
+      <div class="num">02</div>
+      <h4>少即是多</h4>
+      <p>一个界面里颜色不超过 3 种，字号不超过 4 档，圆角只用一个值（如统一 12px 或 16px）。</p>
+    </div>
+    <div class="principle">
+      <div class="num">03</div>
+      <h4>字体是灵魂</h4>
+      <p>优先用系统字体（iOS 用 SF Pro，中文用苹方）。细体 + 大字号往往比粗体更显质感。</p>
+    </div>
+    <div class="principle">
+      <div class="num">04</div>
+      <h4>对齐即秩序</h4>
+      <p>所有元素都要有明确的对齐逻辑——左对齐或居中对齐，不要混用。网格是设计的骨架。</p>
+    </div>
+  </div>
+
+  <!-- 风格 1 -->
+  <section class="style-section">
+    <div class="style-header">
+      <div class="title">01 · 极简黑白</div>
+      <div class="chip">Minimal Monochrome</div>
+    </div>
+    <div class="showcase">
+      <div class="phone s1">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span>●●●●</span></div>
+          <div class="content">
+            <div class="date">星期日 · 四月 19</div>
+            <div class="greet">早安，<strong>Roger</strong></div>
+            <div class="task done"><div class="check"></div><div class="label">晨间冥想</div><div class="time">7:00</div></div>
+            <div class="task"><div class="check"></div><div class="label">完成季度报告</div><div class="time">10:30</div></div>
+            <div class="task"><div class="check"></div><div class="label">和设计师对齐需求</div><div class="time">14:00</div></div>
+            <div class="task"><div class="check"></div><div class="label">阅读 30 分钟</div><div class="time">21:00</div></div>
+          </div>
+          <div class="fab">+</div>
+        </div>
+      </div>
+      <div class="notes">
+        <p class="intro">代表作：Apple Notes、Things 3、Linear、Notion。用大量留白、单色调和清晰的字体层次创造"贵"的感觉，是最安全、最不容易出错的高级风格。</p>
+        <dl class="spec">
+          <dt>主色</dt><dd><div class="palette"><div class="swatch" style="background:#111"></div><div class="swatch" style="background:#fff"></div><div class="swatch" style="background:#8a8a8a"></div><div class="swatch" style="background:#ececec"></div></div></dd>
+          <dt>字体</dt><dd>SF Pro Display · 苹方；正文 15px，标题 32px 细体</dd>
+          <dt>圆角</dt><dd>按钮与卡片统一 12px；头像/FAB 圆形</dd>
+          <dt>关键词</dt><dd><div class="tag-row"><span class="tag">克制</span><span class="tag">留白</span><span class="tag">细线条</span><span class="tag">功能性</span></div></dd>
+        </dl>
+        <div class="fit-for"><strong>适合：</strong>效率工具、笔记、待办、知识管理、阅读类 app。想做看起来"聪明"的产品，选这个不会错。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 风格 2 -->
+  <section class="style-section">
+    <div class="style-header">
+      <div class="title">02 · 深色奢华</div>
+      <div class="chip">Dark Luxury</div>
+    </div>
+    <div class="showcase">
+      <div class="phone s2">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span>●●●●</span></div>
+          <div class="content">
+            <div class="label-top">Total Balance</div>
+            <div class="balance"><span class="currency">¥</span>128,450<span style="font-size:20px;color:#8a8176;">.00</span></div>
+            <div class="delta">↑ +2.8% 本月</div>
+            <div class="card"><div class="dot"></div><div class="info"><div class="t1">薪资收入</div><div class="t2">APR 15 · 工商银行</div></div><div class="amt">+25,000</div></div>
+            <div class="card"><div class="dot" style="background:linear-gradient(135deg,#556270,#2c3e50);"></div><div class="info"><div class="t1">房租</div><div class="t2">APR 10 · 自动扣款</div></div><div class="amt">-6,800</div></div>
+            <div class="card"><div class="dot" style="background:linear-gradient(135deg,#8b5a8c,#4a2f4a);"></div><div class="info"><div class="t1">投资收益</div><div class="t2">APR 08 · 基金分红</div></div><div class="amt">+1,240</div></div>
+          </div>
+          <div class="tabbar">
+            <div class="tab active">资产</div>
+            <div class="tab">明细</div>
+            <div class="tab">投资</div>
+            <div class="tab">我的</div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <p class="intro">代表作：高端金融 app、腕表/名车品牌、部分男士穿搭 app。深色底 + 金色或香槟色点缀，自带权贵感，适合强调"信任、财富、品味"的产品。</p>
+        <dl class="spec">
+          <dt>主色</dt><dd><div class="palette"><div class="swatch" style="background:#0d0d0f"></div><div class="swatch" style="background:#1a1a1d"></div><div class="swatch" style="background:#c9a961"></div><div class="swatch" style="background:#e8e6e0"></div></div></dd>
+          <dt>字体</dt><dd>细体大字 + 小字全大写间距 0.3em</dd>
+          <dt>圆角</dt><dd>卡片 14px，较克制；强调"建筑感"</dd>
+          <dt>关键词</dt><dd><div class="tag-row"><span class="tag">沉稳</span><span class="tag">金属质感</span><span class="tag">克制的光</span><span class="tag">权威</span></div></dd>
+        </dl>
+        <div class="fit-for"><strong>适合：</strong>金融、理财、高端会员、奢侈品电商、男士向产品。⚠️ 注意：深色容易显脏，要严格控制色彩数量。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 风格 3 -->
+  <section class="style-section">
+    <div class="style-header">
+      <div class="title">03 · 莫兰迪柔和</div>
+      <div class="chip">Muted & Warm</div>
+    </div>
+    <div class="showcase">
+      <div class="phone s3">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span>●●●●</span></div>
+          <div class="content">
+            <div class="hello">Good morning,</div>
+            <div class="sub">愿你今天温柔如常</div>
+            <div class="mood-card">
+              <div class="mc-label">本周情绪</div>
+              <div class="mc-title">平静 · 7 天中 5 天</div>
+              <div class="bar-row">
+                <div class="bar" style="height:30%"></div>
+                <div class="bar hi" style="height:60%"></div>
+                <div class="bar" style="height:45%"></div>
+                <div class="bar hi" style="height:80%"></div>
+                <div class="bar hi" style="height:70%"></div>
+                <div class="bar" style="height:50%"></div>
+                <div class="bar hi" style="height:90%"></div>
+              </div>
+            </div>
+            <div class="mood-card">
+              <div class="mc-label">今日练习</div>
+              <div class="mc-title">10 分钟呼吸冥想</div>
+              <div class="pill-row">
+                <span class="pill">晨间</span>
+                <span class="pill">初学者</span>
+                <span class="pill">舒缓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <p class="intro">代表作：Headspace、小红书、生活方式类 app、文创产品。低饱和度的大地色、米色、灰粉色，配衬线字体，传递"慢下来"的气质。</p>
+        <dl class="spec">
+          <dt>主色</dt><dd><div class="palette"><div class="swatch" style="background:#f4ede3"></div><div class="swatch" style="background:#d4bfa3"></div><div class="swatch" style="background:#5a4a3a"></div><div class="swatch" style="background:#fff8ed"></div></div></dd>
+          <dt>字体</dt><dd>衬线体用于标题（Georgia/思源宋），正文用无衬线</dd>
+          <dt>圆角</dt><dd>卡片 20px（偏大），显得柔软</dd>
+          <dt>关键词</dt><dd><div class="tag-row"><span class="tag">温暖</span><span class="tag">手作感</span><span class="tag">慢节奏</span><span class="tag">疗愈</span></div></dd>
+        </dl>
+        <div class="fit-for"><strong>适合：</strong>冥想、日记、情绪记录、女性向社区、轻食/茶饮、母婴、独立创作者社区。几乎是"女性向审美"的通用解法。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 风格 4 -->
+  <section class="style-section">
+    <div class="style-header">
+      <div class="title">04 · 玻璃拟态</div>
+      <div class="chip">Glassmorphism</div>
+    </div>
+    <div class="showcase">
+      <div class="phone s4">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span>●●●●</span></div>
+          <div class="content">
+            <div class="glass weather">
+              <div class="loc">北京 · 朝阳</div>
+              <div class="temp">18<sup>°</sup></div>
+              <div class="cond">Partly Cloudy · 多云</div>
+            </div>
+            <div class="row2">
+              <div class="glass"><div class="k">湿度</div><div class="v">42%</div></div>
+              <div class="glass"><div class="k">风速</div><div class="v">3 m/s</div></div>
+            </div>
+            <div class="glass hourly">
+              <div class="hour"><div class="h">10</div><div class="t">19°</div></div>
+              <div class="hour"><div class="h">12</div><div class="t">21°</div></div>
+              <div class="hour"><div class="h">14</div><div class="t">22°</div></div>
+              <div class="hour"><div class="h">16</div><div class="t">20°</div></div>
+              <div class="hour"><div class="h">18</div><div class="t">17°</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <p class="intro">代表作：新版 iOS/macOS、Apple Vision Pro、部分音乐播放器。彩色光斑背景 + 半透明磨砂卡片，现代、轻盈、有呼吸感，是 2023 年后的主流趋势。</p>
+        <dl class="spec">
+          <dt>主色</dt><dd><div class="palette"><div class="swatch" style="background:#ff9a7b"></div><div class="swatch" style="background:#7ea8ff"></div><div class="swatch" style="background:#c48aff"></div><div class="swatch" style="background:rgba(255,255,255,0.4);border:1px solid #ccc;"></div></div></dd>
+          <dt>字体</dt><dd>极细体 + 超大字号，突出数字</dd>
+          <dt>圆角</dt><dd>统一 24px，卡片较大较圆</dd>
+          <dt>关键词</dt><dd><div class="tag-row"><span class="tag">轻盈</span><span class="tag">半透明</span><span class="tag">未来感</span><span class="tag">光与色</span></div></dd>
+        </dl>
+        <div class="fit-for"><strong>适合：</strong>天气、音乐、健身数据、智能家居、科技感强的工具类。⚠️ 对背景图片/配色要求高，做不好会很"塑料"。</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <div class="eyebrow">给零基础的 3 个起步建议</div>
+  <h1 style="font-size:36px;margin-bottom:12px;">不用学太多，先做这三件事</h1>
+  <div class="tip-grid">
+    <div class="tip">
+      <span class="tag">01</span>
+      <h4>先抄，别急着原创</h4>
+      <p>打开你最喜欢的 3 个 app，一屏一屏地截图，用 Figma 或者白纸画出它们的结构。理解别人为什么这样布局，比凭空创造重要 100 倍。推荐参考站：Mobbin、Dribbble、Land-book。</p>
+    </div>
+    <div class="tip">
+      <span class="tag">02</span>
+      <h4>定一套"设计变量"再动手</h4>
+      <p>开工前先确定：2–3 个颜色、1 种字体和 4 档字号、1 个圆角值、1 套间距（8 / 16 / 24 / 32）。在整个 app 里严格复用。这是"高级感"的真正秘密——一致性。</p>
+    </div>
+    <div class="tip">
+      <span class="tag">03</span>
+      <h4>第一版就用黑白</h4>
+      <p>零基础最容易翻车的就是配色。第一版只用黑、白、灰三色完成所有功能，跑通后再考虑加颜色。黑白跑得通的设计，加了颜色也不会差；黑白做不出层次的设计，加颜色只会更乱。</p>
+    </div>
+    <div class="tip">
+      <span class="tag">04</span>
+      <h4>工具选 Figma，免费够用</h4>
+      <p>浏览器打开就能用，社区里有海量免费 UI Kit，直接搬过来改就能出成果。搜索"iOS 18 UI Kit""Untitled UI""Apple Design Resources"，这三个足够你起步半年。</p>
+    </div>
+  </div>
+
+  <footer>Prepared for Roger · 2026.04.19 · 如果看完有最喜欢的那一种，告诉我，我继续帮你细化</footer>
+
+</div>
+</body>
+</html>

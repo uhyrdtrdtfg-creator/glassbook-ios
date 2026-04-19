@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glassbook · 智能账单识别流程</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  :root {
+    --ink: #1a1a2e;
+    --ink-2: rgba(26,26,46,0.7);
+    --ink-3: rgba(26,26,46,0.45);
+    --ink-4: rgba(26,26,46,0.25);
+    --glass-bg: rgba(255,255,255,0.38);
+    --glass-border: rgba(255,255,255,0.6);
+    --glass-shadow: 0 8px 32px rgba(80,60,120,0.1);
+
+    /* 平台品牌色 */
+    --alipay: #1677FF;
+    --alipay-2: #4A9EFF;
+    --wechat: #07C160;
+    --wechat-2: #4ED88C;
+    --cmb: #C8171E;
+    --cmb-2: #E55A60;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #eae4dc;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  .page { max-width: 1360px; margin: 0 auto; padding: 72px 48px 120px; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--ink-3); margin-bottom: 20px;
+  }
+  h1.title {
+    font-size: 56px; font-weight: 200; letter-spacing: -0.025em; line-height: 1.05;
+    margin-bottom: 20px;
+  }
+  h1.title em {
+    font-style: normal; font-weight: 500;
+    background: linear-gradient(90deg, #1677ff, #07c160 50%, #ff6b9d);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .lede { font-size: 18px; color: var(--ink-2); font-weight: 300; max-width: 720px; }
+  .meta { display: flex; gap: 32px; margin-top: 28px; font-size: 13px; color: var(--ink-3); }
+  .meta span strong { color: var(--ink); font-weight: 500; margin-left: 6px; }
+  .divider { height: 1px; background: rgba(26,26,46,0.08); margin: 64px 0; }
+
+  /* ——— Flow 流程图 ——— */
+  .flow-steps {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    margin: 40px 0 16px;
+  }
+  .flow-step {
+    padding: 20px 22px; border-radius: 16px;
+    background: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.7);
+    position: relative;
+  }
+  .flow-step .num {
+    font-size: 11px; letter-spacing: 0.2em; color: var(--ink-3); font-variant-numeric: tabular-nums;
+  }
+  .flow-step .tt { font-size: 15px; font-weight: 500; margin: 6px 0 4px; }
+  .flow-step .dd { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+  .flow-step::after {
+    content: "→"; position: absolute; top: 50%; right: -10px; transform: translateY(-50%);
+    color: var(--ink-3); font-size: 14px; background: #eae4dc; padding: 0 4px;
+  }
+  .flow-step:last-child::after { display: none; }
+
+  /* ——— 手机网格 ——— */
+  .phone-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px 24px; margin-top: 24px;
+  }
+  .phone-cell { display: flex; flex-direction: column; align-items: center; }
+  .phone-cell .caption { margin-top: 22px; text-align: center; width: 100%; max-width: 280px; }
+  .phone-cell .cap-num {
+    font-size: 11px; letter-spacing: 0.25em; color: var(--ink-3);
+    margin-bottom: 6px; font-variant-numeric: tabular-nums;
+  }
+  .phone-cell .cap-title { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+  .phone-cell .cap-note { font-size: 12px; color: var(--ink-2); line-height: 1.55; }
+
+  /* ——— 手机外壳 ——— */
+  .phone {
+    width: 280px; height: 600px; border-radius: 42px;
+    background: #0a0a12; padding: 8px;
+    box-shadow:
+      0 50px 100px -30px rgba(60,40,100,0.35),
+      0 20px 40px -20px rgba(60,40,100,0.2),
+      0 0 0 1px rgba(0,0,0,0.06);
+    position: relative;
+  }
+  .phone::before {
+    content: ""; position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+    width: 88px; height: 22px; background: #000; border-radius: 18px; z-index: 50;
+  }
+  .screen {
+    width: 100%; height: 100%; border-radius: 34px; overflow: hidden; position: relative;
+  }
+  .statusbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 44px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 24px 0; font-size: 12px; font-weight: 600;
+    font-variant-numeric: tabular-nums; z-index: 30; color: var(--ink);
+  }
+
+  /* ——— 彩色背景 ——— */
+  .bg-a {
+    background:
+      radial-gradient(circle at 20% 15%, #9cc0ff 0%, transparent 42%),
+      radial-gradient(circle at 85% 80%, #a8e4d2 0%, transparent 45%),
+      radial-gradient(circle at 50% 50%, #d4a5ff 0%, transparent 48%),
+      linear-gradient(180deg, #e4eeff 0%, #f0ffe8 100%);
+  }
+  .bg-b {
+    background:
+      radial-gradient(circle at 30% 20%, #c8b5ff 0%, transparent 42%),
+      radial-gradient(circle at 75% 85%, #ffb4cc 0%, transparent 42%),
+      linear-gradient(180deg, #ebe4ff 0%, #ffecf2 100%);
+  }
+  .bg-c {
+    background:
+      radial-gradient(circle at 15% 18%, #ffd46b 0%, transparent 38%),
+      radial-gradient(circle at 85% 55%, #9cc0ff 0%, transparent 40%),
+      radial-gradient(circle at 60% 90%, #d4a5ff 0%, transparent 45%),
+      linear-gradient(180deg, #fff0d4 0%, #e8e4ff 100%);
+  }
+  .bg-d {
+    background:
+      radial-gradient(circle at 50% 30%, #a8e4d2 0%, transparent 50%),
+      radial-gradient(circle at 20% 80%, #ffc8a8 0%, transparent 45%),
+      radial-gradient(circle at 85% 85%, #b8c8ff 0%, transparent 42%),
+      linear-gradient(180deg, #e4fff0 0%, #fff0e4 100%);
+  }
+
+  /* ——— 玻璃 ——— */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    border-radius: 20px;
+  }
+  .content { padding: 60px 16px 20px; height: 100%; position: relative; }
+
+  /* 通用 nav */
+  .nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 4px 6px 14px;
+  }
+  .nav .t { font-size: 16px; font-weight: 500; }
+  .nav .ico-btn {
+    width: 30px; height: 30px; border-radius: 10px;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: var(--ink);
+  }
+
+  /* ============================================ */
+  /* 屏 1：智能识别入口                            */
+  /* ============================================ */
+  .s-entry .hero { padding: 22px 18px; text-align: center; margin-bottom: 14px; position: relative; overflow: hidden; }
+  .s-entry .hero .icon-ring {
+    width: 68px; height: 68px; margin: 4px auto 10px; border-radius: 50%;
+    background: linear-gradient(135deg, #1677ff, #c48aff, #07c160);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; color: #fff;
+    box-shadow: 0 8px 24px rgba(100,80,200,0.35);
+  }
+  .s-entry .hero .ht { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+  .s-entry .hero .hs { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+
+  .s-entry .section-lb {
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--ink-3); margin: 4px 8px 8px; font-weight: 500;
+  }
+
+  .s-entry .platform-list { padding: 6px; margin-bottom: 14px; }
+  .plat-row { display: flex; align-items: center; gap: 12px; padding: 11px 8px; }
+  .plat-row + .plat-row { border-top: 1px solid rgba(255,255,255,0.45); }
+  .plat-row .logo {
+    width: 36px; height: 36px; border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 16px; font-weight: 600; flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  .logo-alipay { background: linear-gradient(135deg, #1677FF, #4A9EFF); }
+  .logo-wechat { background: linear-gradient(135deg, #07C160, #4ED88C); }
+  .logo-cmb { background: linear-gradient(135deg, #C8171E, #E55A60); }
+  .logo-jd { background: linear-gradient(135deg, #E1251B, #F2564B); }
+  .logo-mt { background: linear-gradient(135deg, #FFC900, #FFB84D); }
+  .logo-dy { background: linear-gradient(135deg, #000, #222); }
+
+  .plat-row .pi { flex: 1; min-width: 0; }
+  .plat-row .pi .n { font-size: 13px; font-weight: 500; margin-bottom: 1px; }
+  .plat-row .pi .d { font-size: 10px; color: var(--ink-3); letter-spacing: 0.02em; }
+  .plat-row .arr { color: var(--ink-4); font-size: 14px; }
+  .plat-row .badge {
+    font-size: 9px; color: #4a8a5e; background: rgba(122,207,165,0.18);
+    padding: 2px 7px; border-radius: 999px; letter-spacing: 0.04em;
+    border: 1px solid rgba(122,207,165,0.3);
+  }
+
+  .s-entry .cta-row {
+    position: absolute; bottom: 20px; left: 16px; right: 16px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .s-entry .cta {
+    padding: 14px; border-radius: 14px;
+    font-size: 13px; font-weight: 500; text-align: center;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .cta-primary { background: #1a1a2e; color: #fff; box-shadow: 0 8px 20px rgba(26,26,46,0.3); }
+  .cta-secondary { background: rgba(255,255,255,0.7); color: var(--ink); border: 1px solid var(--glass-border); }
+
+  /* ============================================ */
+  /* 屏 2：识别中                                   */
+  /* ============================================ */
+  .s-scan .scan-frame {
+    position: relative; width: 184px; height: 300px; margin: 8px auto 16px;
+    border-radius: 16px; overflow: hidden;
+    background: #fff;
+    border: 3px solid rgba(255,255,255,0.8);
+    box-shadow: 0 20px 50px rgba(20,0,80,0.25);
+  }
+  .s-scan .mock-screenshot {
+    height: 100%; padding: 16px 14px; background: linear-gradient(180deg, #f7f7f7 0%, #eee 100%);
+    display: flex; flex-direction: column; gap: 10px; font-family: inherit;
+  }
+  .s-scan .mock-hd {
+    font-size: 9px; color: #1677ff; font-weight: 600; letter-spacing: 0.05em;
+    border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;
+  }
+  .s-scan .mock-tx { display: flex; justify-content: space-between; font-size: 8px; padding: 2px 0; }
+  .s-scan .mock-tx .ml { color: #333; }
+  .s-scan .mock-tx .mr { color: #333; font-weight: 500; }
+  .s-scan .mock-tx .md { color: #999; font-size: 7px; }
+
+  .s-scan .scanline {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px;
+    background: linear-gradient(180deg, transparent, rgba(22,119,255,0.45) 50%, transparent);
+    animation: scan 2.4s ease-in-out infinite;
+    border-bottom: 1.5px solid #1677ff;
+    box-shadow: 0 0 24px rgba(22,119,255,0.8);
+  }
+  @keyframes scan {
+    0% { top: -40px; }
+    50% { top: calc(100% - 10px); }
+    100% { top: -40px; }
+  }
+  .s-scan .corner {
+    position: absolute; width: 18px; height: 18px;
+    border: 2px solid #1677ff;
+  }
+  .s-scan .c1 { top: 6px; left: 6px; border-right: none; border-bottom: none; }
+  .s-scan .c2 { top: 6px; right: 6px; border-left: none; border-bottom: none; }
+  .s-scan .c3 { bottom: 6px; left: 6px; border-right: none; border-top: none; }
+  .s-scan .c4 { bottom: 6px; right: 6px; border-left: none; border-top: none; }
+
+  .s-scan .status-card { padding: 16px 18px; margin-bottom: 10px; text-align: center; }
+  .s-scan .sc-dot {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: #1677ff; margin-right: 6px; animation: pulse 1.2s infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .s-scan .sc-t { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+  .s-scan .sc-s { font-size: 10px; color: var(--ink-3); }
+
+  .s-scan .progress-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .s-scan .pg-card { padding: 12px 8px; text-align: center; border-radius: 14px; }
+  .s-scan .pg-card .k { font-size: 9px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+  .s-scan .pg-card .v { font-size: 17px; font-weight: 300; font-variant-numeric: tabular-nums; }
+
+  .s-scan .cancel {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: var(--ink-2);
+    padding: 8px 24px; border-radius: 999px;
+    background: rgba(255,255,255,0.5);
+    border: 1px solid var(--glass-border);
+  }
+
+  /* ============================================ */
+  /* 屏 3：识别结果确认                             */
+  /* ============================================ */
+  .s-review .head-card { padding: 16px 18px; margin-bottom: 10px; }
+  .s-review .hc-row { display: flex; justify-content: space-between; align-items: flex-end; }
+  .s-review .hc-l .lb { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 3px; }
+  .s-review .hc-l .cnt { font-size: 22px; font-weight: 300; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .s-review .hc-l .cnt b { font-weight: 500; }
+  .s-review .hc-r { text-align: right; }
+  .s-review .hc-r .sum { font-size: 18px; font-weight: 400; font-variant-numeric: tabular-nums; }
+  .s-review .hc-r .from { font-size: 9px; color: var(--ink-3); letter-spacing: 0.05em; margin-top: 2px; }
+
+  .s-review .actions {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 10px 8px;
+  }
+  .s-review .actions .left { font-size: 11px; color: var(--ink-2); }
+  .s-review .actions .left b { color: var(--ink); font-weight: 500; }
+  .s-review .actions .right { font-size: 11px; color: #1677ff; font-weight: 500; }
+
+  .s-review .list { padding: 4px 6px 100px; overflow: hidden; }
+  .rv-item { display: flex; align-items: flex-start; gap: 8px; padding: 10px 8px; border-radius: 14px; margin-bottom: 6px; background: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.5); }
+  .rv-item.unchecked { opacity: 0.55; }
+  .rv-item .check {
+    width: 18px; height: 18px; border-radius: 6px; flex-shrink: 0;
+    background: #1a1a2e; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; margin-top: 2px;
+  }
+  .rv-item.unchecked .check { background: transparent; border: 1.5px solid var(--ink-4); color: transparent; }
+  .rv-item .body { flex: 1; min-width: 0; }
+  .rv-item .r1 { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
+  .rv-item .r1 .mc { font-size: 12px; font-weight: 500; }
+  .rv-item .r1 .amt { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .rv-item .r2 { display: flex; gap: 5px; align-items: center; font-size: 9px; color: var(--ink-3); }
+  .rv-item .cat-chip {
+    padding: 2px 7px; border-radius: 999px;
+    font-size: 9px; color: #fff; font-weight: 500; letter-spacing: 0.03em;
+  }
+  .chip-food { background: linear-gradient(135deg, #ff7a9c, #ffb199); }
+  .chip-trans { background: linear-gradient(135deg, #7a9cff, #9cc0ff); }
+  .chip-shop { background: linear-gradient(135deg, #a87aff, #d4a5ff); }
+  .chip-other { background: linear-gradient(135deg, #ffa87a, #ffd46b); }
+  .chip-inc { background: linear-gradient(135deg, #7acfa5, #a8e4d2); }
+  .src-tag {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 8px; color: var(--ink-3); letter-spacing: 0.02em;
+  }
+  .src-tag .d { width: 5px; height: 5px; border-radius: 50%; }
+
+  .s-review .import-btn {
+    position: absolute; bottom: 16px; left: 16px; right: 16px;
+    padding: 14px; border-radius: 16px;
+    background: #1a1a2e; color: #fff;
+    font-size: 14px; font-weight: 500;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    box-shadow: 0 12px 28px rgba(26,26,46,0.35);
+  }
+  .s-review .import-btn .ct {
+    font-size: 11px; background: rgba(255,255,255,0.2);
+    padding: 2px 8px; border-radius: 999px; font-variant-numeric: tabular-nums;
+  }
+
+  /* ============================================ */
+  /* 屏 4：导入完成                                 */
+  /* ============================================ */
+  .s-done { text-align: center; padding-top: 76px; }
+  .s-done .success-ring {
+    width: 100px; height: 100px; margin: 16px auto 20px; border-radius: 50%;
+    background:
+      radial-gradient(circle, rgba(122,207,165,0.35), transparent 70%),
+      linear-gradient(135deg, #7acfa5, #a8e4d2);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    box-shadow: 0 12px 40px rgba(122,207,165,0.5);
+  }
+  .s-done .success-ring::before {
+    content: ""; position: absolute; inset: -12px; border-radius: 50%;
+    background: rgba(122,207,165,0.18); z-index: -1;
+  }
+  .s-done .success-ring::after {
+    content: ""; position: absolute; inset: -24px; border-radius: 50%;
+    background: rgba(122,207,165,0.08); z-index: -2;
+  }
+  .s-done .check-svg { width: 44px; height: 44px; color: #fff; }
+
+  .s-done .tt { font-size: 22px; font-weight: 400; letter-spacing: -0.01em; margin-bottom: 6px; }
+  .s-done .tt b { font-weight: 600; }
+  .s-done .ts { font-size: 12px; color: var(--ink-2); margin-bottom: 24px; padding: 0 20px; line-height: 1.5; }
+
+  .s-done .summary-card { padding: 16px; margin: 0 0 10px; text-align: left; }
+  .s-done .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+  .s-done .summary-row + .summary-row { border-top: 1px solid rgba(255,255,255,0.5); }
+  .s-done .summary-row .k { font-size: 11px; color: var(--ink-2); }
+  .s-done .summary-row .v { font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .s-done .summary-row .v.exp { color: #d04a7a; }
+  .s-done .summary-row .v.inc { color: #4a8a5e; }
+
+  .s-done .cat-dist { display: flex; align-items: center; gap: 4px; padding: 10px 14px; }
+  .s-done .cat-bar { flex: 1; height: 6px; border-radius: 99px; display: flex; overflow: hidden; background: rgba(255,255,255,0.4); }
+  .s-done .cat-seg { height: 100%; }
+
+  .s-done .btn-row { position: absolute; bottom: 20px; left: 16px; right: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .s-done .btn { padding: 14px; border-radius: 14px; font-size: 13px; font-weight: 500; text-align: center; }
+  .s-done .btn.primary { background: #1a1a2e; color: #fff; }
+  .s-done .btn.ghost { background: rgba(255,255,255,0.7); color: var(--ink); border: 1px solid var(--glass-border); }
+
+  /* ——— 交互说明区 ——— */
+  .detail-section { margin-top: 84px; }
+  .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 36px; }
+  .detail-card {
+    background: rgba(255,255,255,0.5);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.7);
+    border-radius: 20px; padding: 26px;
+    box-shadow: 0 8px 32px rgba(80,60,120,0.08);
+  }
+  .detail-card .dc-num {
+    font-size: 32px; font-weight: 200; letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #1677ff, #c48aff);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 14px; line-height: 1;
+  }
+  .detail-card h4 { font-size: 17px; font-weight: 500; margin-bottom: 10px; }
+  .detail-card p { font-size: 13px; color: var(--ink-2); line-height: 1.65; }
+  .detail-card ul { list-style: none; margin-top: 12px; }
+  .detail-card ul li {
+    font-size: 12px; color: var(--ink-2);
+    padding: 5px 0 5px 16px; position: relative;
+  }
+  .detail-card ul li::before {
+    content: ""; position: absolute; left: 0; top: 12px;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: linear-gradient(135deg, #1677ff, #c48aff);
+  }
+  .detail-card ul li b { color: var(--ink); font-weight: 500; }
+
+  footer { margin-top: 84px; padding-top: 36px; border-top: 1px solid rgba(26,26,46,0.08); font-size: 12px; color: var(--ink-3); letter-spacing: 0.05em; text-align: center; }
+  footer em { font-style: normal; color: var(--ink); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="eyebrow">Smart Bill Import · 智能账单识别</div>
+  <h1 class="title">一张截图，<em>自动入账</em></h1>
+  <p class="lede">支付宝、微信、招行…把这些平台的截图或流水直接丢进来，AI 识别金额、商户、时间、分类，你只要确认。以下是完整的 4 屏流程设计。</p>
+  <div class="meta">
+    <span>新增屏数<strong>4 张</strong></span>
+    <span>支持平台<strong>20+</strong></span>
+    <span>与前稿风格<strong>完全统一</strong></span>
+    <span>日期<strong>2026.04.19</strong></span>
+  </div>
+
+  <!-- 流程图 -->
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="num">01</div>
+      <div class="tt">选择来源</div>
+      <div class="dd">从相册选截图或截屏识别，支持多张合并</div>
+    </div>
+    <div class="flow-step">
+      <div class="num">02</div>
+      <div class="tt">AI 识别</div>
+      <div class="dd">自动识别金额、商户、时间、分类</div>
+    </div>
+    <div class="flow-step">
+      <div class="num">03</div>
+      <div class="tt">确认 & 编辑</div>
+      <div class="dd">可批量修改分类、取消勾选、手工调整</div>
+    </div>
+    <div class="flow-step">
+      <div class="num">04</div>
+      <div class="tt">一键导入</div>
+      <div class="dd">自动去重、合并收入/支出、写入账单</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="phone-grid">
+
+    <!-- ============ 屏 1：入口 ============ -->
+    <div class="phone-cell">
+      <div class="phone">
+        <div class="screen bg-a">
+          <div class="statusbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div class="content s-entry">
+            <div class="nav">
+              <div class="ico-btn">←</div>
+              <div class="t">智能识别</div>
+              <div class="ico-btn">?</div>
+            </div>
+
+            <div class="glass hero">
+              <div class="icon-ring">✦</div>
+              <div class="ht">从截图一键导入</div>
+              <div class="hs">支付宝 · 微信 · 招行截图<br>AI 自动识别，无需手工录入</div>
+            </div>
+
+            <div class="section-lb">支持平台</div>
+            <div class="glass platform-list">
+              <div class="plat-row">
+                <div class="logo logo-alipay">支</div>
+                <div class="pi">
+                  <div class="n">支付宝</div>
+                  <div class="d">账单 · 月报 · 转账记录</div>
+                </div>
+                <span class="badge">常用</span>
+              </div>
+              <div class="plat-row">
+                <div class="logo logo-wechat">微</div>
+                <div class="pi">
+                  <div class="n">微信支付</div>
+                  <div class="d">账单明细 · 钱包截图</div>
+                </div>
+                <span class="badge">常用</span>
+              </div>
+              <div class="plat-row">
+                <div class="logo logo-cmb">招</div>
+                <div class="pi">
+                  <div class="n">招商银行</div>
+                  <div class="d">收支明细 · 信用卡账单</div>
+                </div>
+                <div class="arr">›</div>
+              </div>
+              <div class="plat-row">
+                <div class="logo logo-jd">京</div>
+                <div class="pi">
+                  <div class="n">京东 / 美团 / 更多</div>
+                  <div class="d">20+ 平台持续支持中</div>
+                </div>
+                <div class="arr">›</div>
+              </div>
+            </div>
+
+            <div class="cta-row">
+              <div class="cta cta-secondary">📸 截屏</div>
+              <div class="cta cta-primary">▨ 从相册</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <div class="cap-num">01 / ENTRY</div>
+        <div class="cap-title">智能识别入口</div>
+        <div class="cap-note">顶部彩色 Hero 卡片点明价值；下方列出主要平台，每个都自带品牌色 Logo；底部双按钮区分"截屏"和"从相册"。</div>
+      </div>
+    </div>
+
+    <!-- ============ 屏 2：识别中 ============ -->
+    <div class="phone-cell">
+      <div class="phone">
+        <div class="screen bg-b">
+          <div class="statusbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div class="content s-scan">
+            <div class="nav">
+              <div class="ico-btn">✕</div>
+              <div class="t">正在识别</div>
+              <div class="ico-btn" style="opacity:0;">·</div>
+            </div>
+
+            <!-- 扫描中的截图预览 -->
+            <div class="scan-frame">
+              <div class="mock-screenshot">
+                <div class="mock-hd">支付宝账单 · 4 月</div>
+                <div class="mock-tx"><div class="ml"><div>美团外卖</div><div class="md">4.19 12:40</div></div><div class="mr">-28.00</div></div>
+                <div class="mock-tx"><div class="ml"><div>滴滴出行</div><div class="md">4.19 09:12</div></div><div class="mr">-34.50</div></div>
+                <div class="mock-tx"><div class="ml"><div>优衣库</div><div class="md">4.18 19:30</div></div><div class="mr">-299.00</div></div>
+                <div class="mock-tx"><div class="ml"><div>星巴克</div><div class="md">4.18 15:20</div></div><div class="mr">-42.00</div></div>
+                <div class="mock-tx"><div class="ml"><div>盒马鲜生</div><div class="md">4.17 20:15</div></div><div class="mr">-186.50</div></div>
+                <div class="mock-tx"><div class="ml"><div>地铁充值</div><div class="md">4.17 08:30</div></div><div class="mr">-50.00</div></div>
+                <div class="mock-tx"><div class="ml"><div>Apple Store</div><div class="md">4.16 22:00</div></div><div class="mr">-128.00</div></div>
+                <div class="mock-tx"><div class="ml"><div>退款-京东</div><div class="md">4.16 11:00</div></div><div class="mr" style="color:#4a8a5e;">+69.00</div></div>
+              </div>
+              <div class="corner c1"></div><div class="corner c2"></div>
+              <div class="corner c3"></div><div class="corner c4"></div>
+              <div class="scanline"></div>
+            </div>
+
+            <div class="glass status-card">
+              <div class="sc-t"><span class="sc-dot"></span>AI 正在识别交易…</div>
+              <div class="sc-s">支付宝账单 · 已处理 72%</div>
+            </div>
+
+            <div class="progress-grid">
+              <div class="glass pg-card">
+                <div class="k">已识别</div>
+                <div class="v">8</div>
+              </div>
+              <div class="glass pg-card">
+                <div class="k">总金额</div>
+                <div class="v">¥898</div>
+              </div>
+              <div class="glass pg-card">
+                <div class="k">已分类</div>
+                <div class="v">100%</div>
+              </div>
+            </div>
+
+            <div class="cancel">取消识别</div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <div class="cap-num">02 / SCANNING</div>
+        <div class="cap-title">AI 识别中</div>
+        <div class="cap-note">蓝色扫描线在截图上上下移动，四角标记给出"AI 焦点"仪式感。下方三张小卡实时显示"已识别 / 金额 / 分类"进度。</div>
+      </div>
+    </div>
+
+    <!-- ============ 屏 3：确认 ============ -->
+    <div class="phone-cell">
+      <div class="phone">
+        <div class="screen bg-c">
+          <div class="statusbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div class="content s-review">
+            <div class="nav">
+              <div class="ico-btn">✕</div>
+              <div class="t">确认导入</div>
+              <div class="ico-btn">✎</div>
+            </div>
+
+            <div class="glass head-card">
+              <div class="hc-row">
+                <div class="hc-l">
+                  <div class="lb">识别到</div>
+                  <div class="cnt"><b>8</b> 笔交易</div>
+                </div>
+                <div class="hc-r">
+                  <div class="sum">¥898.00</div>
+                  <div class="from">来自支付宝 · 4月</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="actions">
+              <div class="left">已选 <b>7</b> / 8</div>
+              <div class="right">全选</div>
+            </div>
+
+            <div class="list">
+              <div class="rv-item">
+                <div class="check">✓</div>
+                <div class="body">
+                  <div class="r1"><div class="mc">美团外卖</div><div class="amt">-¥28.00</div></div>
+                  <div class="r2">
+                    <span class="cat-chip chip-food">餐饮</span>
+                    <span class="src-tag"><span class="d" style="background:#1677ff;"></span>支付宝</span>
+                    <span>·</span>
+                    <span>4.19 12:40</span>
+                  </div>
+                </div>
+              </div>
+              <div class="rv-item">
+                <div class="check">✓</div>
+                <div class="body">
+                  <div class="r1"><div class="mc">滴滴出行</div><div class="amt">-¥34.50</div></div>
+                  <div class="r2">
+                    <span class="cat-chip chip-trans">交通</span>
+                    <span class="src-tag"><span class="d" style="background:#1677ff;"></span>支付宝</span>
+                    <span>·</span>
+                    <span>4.19 09:12</span>
+                  </div>
+                </div>
+              </div>
+              <div class="rv-item">
+                <div class="check">✓</div>
+                <div class="body">
+                  <div class="r1"><div class="mc">优衣库</div><div class="amt">-¥299.00</div></div>
+                  <div class="r2">
+                    <span class="cat-chip chip-shop">购物</span>
+                    <span class="src-tag"><span class="d" style="background:#1677ff;"></span>支付宝</span>
+                    <span>·</span>
+                    <span>4.18 19:30</span>
+                  </div>
+                </div>
+              </div>
+              <div class="rv-item">
+                <div class="check">✓</div>
+                <div class="body">
+                  <div class="r1"><div class="mc">星巴克咖啡</div><div class="amt">-¥42.00</div></div>
+                  <div class="r2">
+                    <span class="cat-chip chip-food">餐饮</span>
+                    <span class="src-tag"><span class="d" style="background:#1677ff;"></span>支付宝</span>
+                    <span>·</span>
+                    <span>4.18 15:20</span>
+                  </div>
+                </div>
+              </div>
+              <div class="rv-item">
+                <div class="check">✓</div>
+                <div class="body">
+                  <div class="r1"><div class="mc">盒马鲜生</div><div class="amt">-¥186.50</div></div>
+                  <div class="r2">
+                    <span class="cat-chip chip-other">居家</span>
+                    <span class="src-tag"><span class="d" style="background:#1677ff;"></span>支付宝</span>
+                    <span>·</span>
+                    <span>4.17 20:15</span>
+                  </div>
+                </div>
+              </div>
+              <div class="rv-item unchecked">
+                <div class="check">✓</div>
+                <div class="body">
+                  <div class="r1"><div class="mc">Apple Store</div><div class="amt">-¥128.00</div></div>
+                  <div class="r2">
+                    <span class="cat-chip chip-shop">购物</span>
+                    <span class="src-tag"><span class="d" style="background:#999;"></span>已存在</span>
+                  </div>
+                </div>
+              </div>
+              <div class="rv-item">
+                <div class="check">✓</div>
+                <div class="body">
+                  <div class="r1"><div class="mc">京东退款</div><div class="amt" style="color:#4a8a5e;">+¥69.00</div></div>
+                  <div class="r2">
+                    <span class="cat-chip chip-inc">退款</span>
+                    <span class="src-tag"><span class="d" style="background:#1677ff;"></span>支付宝</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="import-btn">
+              导入选中交易 <span class="ct">7 笔</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <div class="cap-num">03 / REVIEW</div>
+        <div class="cap-title">确认 & 编辑</div>
+        <div class="cap-note">每条可点击修改分类（彩色 chip）、取消勾选。自动检测重复条目（如 Apple Store）默认不选并标"已存在"。退款自动归为收入。</div>
+      </div>
+    </div>
+
+    <!-- ============ 屏 4：完成 ============ -->
+    <div class="phone-cell">
+      <div class="phone">
+        <div class="screen bg-d">
+          <div class="statusbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div class="content s-done">
+            <div class="success-ring">
+              <svg class="check-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+
+            <div class="tt">成功导入 <b>7 笔</b></div>
+            <div class="ts">AI 已自动分类并写入你的 4 月账单，<br>下次识别会更准。</div>
+
+            <div class="glass summary-card">
+              <div class="summary-row">
+                <div class="k">合计支出</div>
+                <div class="v exp">-¥590.00</div>
+              </div>
+              <div class="summary-row">
+                <div class="k">合计收入</div>
+                <div class="v inc">+¥69.00</div>
+              </div>
+              <div class="summary-row">
+                <div class="k">跨越日期</div>
+                <div class="v">4.16 – 4.19</div>
+              </div>
+              <div class="summary-row">
+                <div class="k">自动去重</div>
+                <div class="v">1 笔</div>
+              </div>
+            </div>
+
+            <div class="glass cat-dist">
+              <span style="font-size:10px;color:var(--ink-3);">分类</span>
+              <div class="cat-bar">
+                <div class="cat-seg" style="width:32%;background:linear-gradient(90deg,#ff7a9c,#ffb199);"></div>
+                <div class="cat-seg" style="width:28%;background:linear-gradient(90deg,#a87aff,#d4a5ff);"></div>
+                <div class="cat-seg" style="width:22%;background:linear-gradient(90deg,#ffa87a,#ffd46b);"></div>
+                <div class="cat-seg" style="width:18%;background:linear-gradient(90deg,#7a9cff,#9cc0ff);"></div>
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <div class="btn ghost">再导一批</div>
+              <div class="btn primary">查看账单</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <div class="cap-num">04 / DONE</div>
+        <div class="cap-title">导入完成</div>
+        <div class="cap-note">绿色光晕 + 对勾给正反馈；下方汇总支出 / 收入 / 去重数量，分类彩条简洁展示本批结构。两个出口：继续导 / 查看账单。</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ 功能说明 ============ -->
+  <div class="detail-section">
+    <div class="eyebrow">Feature Detail · 功能亮点</div>
+    <h1 class="title" style="font-size:36px;">让 AI 干脏活，<em>你只负责确认</em></h1>
+    <div class="detail-grid">
+
+      <div class="detail-card">
+        <div class="dc-num">01</div>
+        <h4>多种导入入口</h4>
+        <p>不强迫用户走一条路，给足灵活性：</p>
+        <ul>
+          <li><b>从相册选图</b>——事后导入历史截图，支持一次选多张</li>
+          <li><b>截屏自动识别</b>——在支付宝账单页截屏后自动弹窗提示</li>
+          <li><b>分享到 Glassbook</b>——从支付宝"分享账单"直接跳转</li>
+          <li><b>邮件导入</b>——转发招行对账单邮件自动解析</li>
+        </ul>
+      </div>
+
+      <div class="detail-card">
+        <div class="dc-num">02</div>
+        <h4>智能识别能力</h4>
+        <p>不止识别文字，还要理解"这是一笔什么账"：</p>
+        <ul>
+          <li><b>商户 → 分类</b>智能映射（美团→餐饮，滴滴→交通）</li>
+          <li><b>自动去重</b>：同商户 + 同金额 + 同时间 = 跳过</li>
+          <li><b>收支识别</b>：退款 / 转入自动归为收入</li>
+          <li><b>多平台合并</b>：同一笔交易在支付宝和招行都出现时只记一次</li>
+        </ul>
+      </div>
+
+      <div class="detail-card">
+        <div class="dc-num">03</div>
+        <h4>始终给用户控制权</h4>
+        <p>AI 识别再准也会错，所以每一步都留出口：</p>
+        <ul>
+          <li>确认页每条都可<b>修改分类、金额、备注</b></li>
+          <li>重复项默认<b>不勾选</b>但可手动打开</li>
+          <li>支持<b>批量操作</b>：全选、反选、按分类筛选</li>
+          <li>导入后 7 天内可<b>一键回滚</b>整批数据</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    <em>Glassbook</em> · 智能账单识别 · 4 屏流程设计 · for Roger · 2026.04.19<br>
+    需要的话可以继续加"历史导入记录"、"自定义识别规则"等进阶屏
+  </footer>
+
+</div>
+</body>
+</html>

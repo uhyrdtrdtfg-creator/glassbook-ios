@@ -1,0 +1,1840 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Glassbook · 进阶功能综合方案 & 核心交互图</title>
+<style>
+  :root {
+    --ink: #15172A;
+    --ink-soft: #3E4057;
+    --muted: #8E90A6;
+    --line: rgba(21, 23, 42, 0.08);
+    --glass: rgba(255,255,255,0.38);
+    --glass-strong: rgba(255,255,255,0.62);
+    --pink: #FFB5C8;
+    --peach: #FFC9B0;
+    --blue: #B8D6FF;
+    --purple: #D7C4FF;
+    --gold: #F4DFA8;
+    --success: #4A8A5E;
+    --danger: #C8171E;
+    --wechat: #07C160;
+    --alipay: #1677FF;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+    background:
+      radial-gradient(1200px 800px at 10% 5%, #FFE0EC 0%, transparent 50%),
+      radial-gradient(1400px 900px at 95% 10%, #E5EEFF 0%, transparent 55%),
+      radial-gradient(1000px 700px at 50% 100%, #F4E6FF 0%, transparent 60%),
+      radial-gradient(900px 700px at 0% 100%, #FFF4DE 0%, transparent 50%),
+      #F8F6F2;
+    min-height: 100vh;
+    color: var(--ink);
+    padding: 60px 48px 120px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1440px; margin: 0 auto; }
+
+  /* -------- Header -------- */
+  .header {
+    text-align: center;
+    margin-bottom: 56px;
+  }
+  .eyebrow {
+    display: inline-block;
+    padding: 6px 14px;
+    background: var(--glass);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 999px;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+    font-weight: 500;
+    margin-bottom: 20px;
+  }
+  h1.title {
+    font-size: 56px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, #15172A 0%, #4a3a6a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .subtitle {
+    font-size: 18px;
+    color: var(--ink-soft);
+    max-width: 760px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* -------- Section Headers -------- */
+  .section { margin-bottom: 72px; }
+  .section-hd {
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .section-num {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+  .section-title {
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .section-desc {
+    font-size: 15px;
+    color: var(--ink-soft);
+    margin-left: auto;
+    max-width: 560px;
+    line-height: 1.6;
+  }
+
+  /* -------- Glass Card -------- */
+  .card {
+    background: var(--glass);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 22px;
+    box-shadow: 0 8px 32px rgba(21,23,42,0.05);
+  }
+
+  /* -------- Decision Matrix -------- */
+  .matrix {
+    padding: 32px;
+    overflow-x: auto;
+  }
+  .matrix table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .matrix th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    text-transform: uppercase;
+  }
+  .matrix td {
+    padding: 18px 16px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+    line-height: 1.55;
+  }
+  .matrix tr:last-child td { border-bottom: none; }
+  .matrix .cat-head td {
+    background: rgba(255,255,255,0.5);
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    padding: 12px 16px;
+  }
+  .feat-name { font-weight: 600; color: var(--ink); }
+  .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+  .tag-adopt { background: rgba(74, 138, 94, 0.15); color: var(--success); }
+  .tag-later { background: rgba(244, 223, 168, 0.5); color: #8a6d1f; }
+  .tag-defer { background: rgba(142, 144, 166, 0.15); color: var(--muted); }
+  .ver {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: "SF Mono", Consolas, monospace;
+    background: rgba(21,23,42,0.06);
+    color: var(--ink);
+  }
+  .ver-v10 { background: rgba(255, 181, 200, 0.5); color: #8a2e49; }
+  .ver-v15 { background: rgba(184, 214, 255, 0.6); color: #1f4a94; }
+  .ver-v20 { background: rgba(215, 196, 255, 0.6); color: #5a3a9a; }
+
+  /* -------- Roadmap -------- */
+  .roadmap {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px;
+    position: relative;
+  }
+  .roadmap::before {
+    content: "";
+    position: absolute;
+    top: 58px;
+    left: 5%;
+    right: 5%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--pink), var(--blue), var(--purple));
+    opacity: 0.4;
+    z-index: 0;
+  }
+  .stage {
+    padding: 28px;
+    position: relative;
+    z-index: 1;
+  }
+  .stage-dot {
+    position: absolute;
+    top: 52px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--ink);
+  }
+  .stage-num {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .stage-name {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 6px 0 4px;
+    color: var(--ink);
+  }
+  .stage-timing {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 22px;
+  }
+  .stage-goal {
+    padding: 14px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    margin-bottom: 18px;
+  }
+  .stage-goal b { color: var(--ink); }
+  .stage-feats { list-style: none; }
+  .stage-feats li {
+    padding: 8px 0;
+    padding-left: 18px;
+    position: relative;
+    font-size: 13px;
+    color: var(--ink);
+    line-height: 1.5;
+    border-bottom: 1px dashed var(--line);
+  }
+  .stage-feats li:last-child { border-bottom: none; }
+  .stage-feats li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 16px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .stage-1 .stage-feats li::before { background: var(--pink); }
+  .stage-2 .stage-feats li::before { background: var(--blue); }
+  .stage-3 .stage-feats li::before { background: var(--purple); }
+
+  /* -------- Diagram Card -------- */
+  .diagram {
+    padding: 36px;
+    margin-bottom: 32px;
+  }
+  .diag-hd { margin-bottom: 28px; }
+  .diag-num {
+    display: inline-block;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .diag-title {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
+  }
+  .diag-sub {
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    max-width: 820px;
+  }
+
+  /* -------- Sequence Diagram (for MCP) -------- */
+  .seq {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    padding: 28px;
+    background: rgba(255,255,255,0.4);
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.6);
+    margin-top: 20px;
+  }
+  .actor {
+    text-align: center;
+  }
+  .actor-hd {
+    padding: 12px 20px;
+    background: #fff;
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 13px;
+    box-shadow: 0 4px 12px rgba(21,23,42,0.08);
+    margin-bottom: 16px;
+    display: inline-block;
+  }
+  .actor-hd.claude { background: linear-gradient(135deg, #fff 0%, #FFE5E5 100%); }
+  .actor-hd.mcp { background: linear-gradient(135deg, #fff 0%, #E5F0FF 100%); }
+  .actor-hd.glass { background: linear-gradient(135deg, #fff 0%, #F0E5FF 100%); }
+  .msg {
+    text-align: left;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.9);
+    border-radius: 12px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .msg-step {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 700;
+    display: block;
+    margin-bottom: 4px;
+    letter-spacing: 0.1em;
+  }
+  .msg-code {
+    display: block;
+    margin-top: 6px;
+    padding: 6px 8px;
+    background: #15172A;
+    color: #a5e7a5;
+    border-radius: 6px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 10.5px;
+    line-height: 1.5;
+    word-break: break-all;
+  }
+  .arrow-row {
+    text-align: center;
+    font-size: 24px;
+    color: var(--muted);
+    margin: 4px 0;
+  }
+
+  /* -------- Phone Mockup -------- */
+  .phone {
+    width: 320px;
+    height: 660px;
+    background: #fff;
+    border-radius: 44px;
+    padding: 14px;
+    box-shadow:
+      0 30px 60px rgba(21,23,42,0.15),
+      0 0 0 2px rgba(21,23,42,0.06);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .phone-screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 32px;
+    overflow: hidden;
+    position: relative;
+    background:
+      radial-gradient(600px 400px at 20% 10%, #FFE0EC 0%, transparent 60%),
+      radial-gradient(500px 400px at 100% 30%, #E5EEFF 0%, transparent 60%),
+      radial-gradient(400px 300px at 0% 100%, #F4E6FF 0%, transparent 60%),
+      #FAF8F5;
+  }
+  .notch {
+    position: absolute;
+    top: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 110px;
+    height: 28px;
+    background: #15172A;
+    border-radius: 0 0 18px 18px;
+    z-index: 10;
+  }
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    padding: 18px 28px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink);
+    position: relative;
+    z-index: 5;
+  }
+
+  /* -------- Dual phones layout -------- */
+  .dual {
+    display: flex;
+    gap: 48px;
+    justify-content: center;
+    align-items: flex-start;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .dual-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 320px;
+  }
+  .dual-cap {
+    margin-top: 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+    text-align: center;
+  }
+  .dual-cap small {
+    display: block;
+    font-weight: 400;
+    color: var(--ink-soft);
+    margin-top: 4px;
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+  .flow-arrow {
+    font-size: 28px;
+    color: var(--muted);
+    align-self: center;
+    margin-top: 300px;
+    padding: 0 4px;
+  }
+
+  /* -------- Screen content styles -------- */
+  .screen-pad { padding: 14px 22px; }
+  .scr-ttl { font-size: 22px; font-weight: 700; margin: 10px 0 14px; }
+  .scr-sub { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+
+  .sub-card {
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.8);
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .sub-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sub-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: white;
+    font-size: 11px;
+    letter-spacing: -0.02em;
+  }
+  .sub-info { flex: 1; margin-left: 10px; }
+  .sub-name { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .sub-meta { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+  .sub-amt { font-size: 14px; font-weight: 700; color: var(--ink); text-align: right; }
+  .sub-ccy { font-size: 10px; color: var(--muted); font-weight: 500; margin-top: 2px; text-align: right; }
+  .badge-warn {
+    display: inline-block;
+    padding: 2px 7px;
+    background: rgba(200, 23, 30, 0.12);
+    color: var(--danger);
+    font-size: 9.5px;
+    border-radius: 6px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+  .badge-ok {
+    display: inline-block;
+    padding: 2px 7px;
+    background: rgba(74, 138, 94, 0.15);
+    color: var(--success);
+    font-size: 9.5px;
+    border-radius: 6px;
+    font-weight: 700;
+  }
+  .badge-dev {
+    display: inline-block;
+    padding: 2px 7px;
+    background: rgba(23, 119, 255, 0.12);
+    color: var(--alipay);
+    font-size: 9.5px;
+    border-radius: 6px;
+    font-weight: 700;
+  }
+
+  /* hero stat */
+  .hero {
+    background: linear-gradient(135deg, rgba(255,255,255,0.85), rgba(255,255,255,0.55));
+    backdrop-filter: blur(25px);
+    border: 1px solid rgba(255,255,255,0.9);
+    border-radius: 20px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .hero-label { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; }
+  .hero-val { font-size: 32px; font-weight: 700; margin-top: 4px; }
+  .hero-sub { font-size: 11px; color: var(--ink-soft); margin-top: 6px; }
+
+  /* chat bubble */
+  .bubble-user {
+    background: var(--ink);
+    color: white;
+    padding: 10px 14px;
+    border-radius: 16px 16px 4px 16px;
+    margin: 8px 0 8px auto;
+    max-width: 80%;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .bubble-ai {
+    background: rgba(255,255,255,0.85);
+    padding: 10px 14px;
+    border-radius: 16px 16px 16px 4px;
+    margin: 8px auto 8px 0;
+    max-width: 85%;
+    font-size: 12px;
+    line-height: 1.5;
+    border: 1px solid rgba(255,255,255,0.9);
+  }
+  .tool-call {
+    background: #0F1020;
+    color: #a5e7a5;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 10px;
+    line-height: 1.55;
+    margin: 6px 0;
+  }
+  .tool-call .key { color: #e5c07b; }
+  .tool-call .str { color: #98c379; }
+  .tool-call .func { color: #61afef; }
+
+  /* Notification */
+  .notif {
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(20px);
+    border-radius: 16px;
+    padding: 12px 14px;
+    border: 1px solid rgba(255,255,255,0.9);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    margin: 12px 0;
+  }
+  .notif-hd {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .notif-app { font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; color: var(--ink-soft); text-transform: uppercase; }
+  .notif-time { font-size: 10px; color: var(--muted); }
+  .notif-title { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
+  .notif-body { font-size: 11.5px; color: var(--ink-soft); line-height: 1.5; }
+  .notif-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .notif-btn {
+    flex: 1;
+    padding: 6px 10px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    background: rgba(21,23,42,0.06);
+  }
+  .notif-btn-p { background: var(--ink); color: white; }
+
+  /* Developer panel */
+  .dev-sec {
+    background: rgba(255,255,255,0.7);
+    border-radius: 14px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .dev-title { font-size: 12px; font-weight: 700; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .dev-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 11px;
+    border-top: 1px solid var(--line);
+  }
+  .dev-row:first-of-type { border-top: none; }
+  .dev-key { font-family: "SF Mono", Consolas, monospace; color: var(--ink-soft); font-size: 10px; }
+  .dev-val { font-weight: 600; }
+  .dev-toggle {
+    width: 28px; height: 16px;
+    background: var(--success);
+    border-radius: 999px;
+    position: relative;
+  }
+  .dev-toggle::after {
+    content: "";
+    position: absolute;
+    right: 2px; top: 2px;
+    width: 12px; height: 12px;
+    background: white;
+    border-radius: 50%;
+  }
+
+  /* Family sharing dual lock */
+  .family-member {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 12px;
+    margin-bottom: 8px;
+  }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 12px;
+    color: white;
+  }
+  .mem-info { flex: 1; }
+  .mem-name { font-size: 12px; font-weight: 600; }
+  .mem-role { font-size: 10px; color: var(--muted); }
+  .lock-icn { font-size: 14px; }
+
+  /* Mood chip */
+  .mood-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .mood-chip {
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.6);
+  }
+  .mood-chip.selected {
+    background: var(--ink);
+    color: white;
+    border-color: var(--ink);
+  }
+  .sunk-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(255, 181, 200, 0.2);
+    border-left: 3px solid var(--danger);
+    border-radius: 8px;
+    margin-bottom: 6px;
+  }
+  .sunk-icn {
+    width: 30px; height: 30px;
+    background: var(--danger);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .sunk-name { font-size: 12px; font-weight: 600; }
+  .sunk-days { font-size: 10px; color: var(--muted); }
+  .sunk-amt { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--danger); }
+
+  /* Architecture */
+  .arch {
+    padding: 32px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    position: relative;
+  }
+  .arch-col {
+    background: rgba(255,255,255,0.6);
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid rgba(255,255,255,0.8);
+  }
+  .arch-col h4 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    color: var(--ink);
+    letter-spacing: 0.03em;
+  }
+  .arch-col h4 small {
+    display: block;
+    font-weight: 400;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0;
+  }
+  .arch-item {
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.8);
+    border-radius: 10px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .arch-item small {
+    color: var(--muted);
+    font-size: 10.5px;
+  }
+
+  /* MVP pitch */
+  .pitch {
+    padding: 48px 56px;
+    background:
+      linear-gradient(135deg, rgba(255,181,200,0.3), rgba(184,214,255,0.3), rgba(215,196,255,0.3)),
+      rgba(255,255,255,0.55);
+    border: 1px solid rgba(255,255,255,0.8);
+    border-radius: 28px;
+    text-align: center;
+  }
+  .pitch-kicker {
+    display: inline-block;
+    padding: 5px 12px;
+    background: var(--ink);
+    color: white;
+    border-radius: 999px;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    font-weight: 600;
+    margin-bottom: 18px;
+  }
+  .pitch h2 {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    max-width: 760px;
+    margin: 0 auto 16px;
+    line-height: 1.3;
+  }
+  .pitch p {
+    font-size: 16px;
+    color: var(--ink-soft);
+    max-width: 640px;
+    margin: 0 auto 24px;
+    line-height: 1.65;
+  }
+  .pitch-kpi {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    margin-top: 36px;
+    padding-top: 28px;
+    border-top: 1px solid rgba(21,23,42,0.08);
+  }
+  .kpi-val {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .kpi-lbl {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-top: 4px;
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 80px;
+    padding-top: 28px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== Header ===== -->
+  <div class="header">
+    <div class="eyebrow">GLASSBOOK · LOCAL-FIRST SYNTHESIS v2</div>
+    <h1 class="title">综合处理方案 & 核心交互图</h1>
+    <p class="subtitle">基于「零云端 · iCloud 同步 · BYO 大模型」三大原则重构。AI / 开发者 / 育儿 / 财务健康四类需求分层落位，给出可执行的三阶段路线图，附 6 张可直接指导设计开发的交互图。</p>
+    <div style="display:inline-flex; gap:10px; margin-top:20px; flex-wrap:wrap; justify-content:center;">
+      <span style="padding:6px 14px; background:rgba(74,138,94,0.15); color:#2e5a3f; border-radius:999px; font-size:12px; font-weight:600;">✓ 无自有云端</span>
+      <span style="padding:6px 14px; background:rgba(23,119,255,0.12); color:#1f4a94; border-radius:999px; font-size:12px; font-weight:600;">✓ iCloud 数据同步</span>
+      <span style="padding:6px 14px; background:rgba(215,196,255,0.35); color:#5a3a9a; border-radius:999px; font-size:12px; font-weight:600;">✓ 自定义大模型接入（BYO）</span>
+    </div>
+  </div>
+
+  <!-- ===== Section 1 · Decision Matrix ===== -->
+  <div class="section">
+    <div class="section-hd">
+      <span class="section-num">01</span>
+      <span class="section-title">决策矩阵</span>
+      <span class="section-desc">14 个子功能逐一处理。新约束：不做自有云端（无服务器、无用户账号、无云数据库）。数据同步走 iCloud；AI 能力走 on-device 或用户自带大模型。</span>
+    </div>
+    <div class="card matrix">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 22%">功能</th>
+            <th style="width: 10%">版本</th>
+            <th style="width: 10%">决策</th>
+            <th style="width: 30%">处理方案</th>
+            <th style="width: 28%">关键理由</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="cat-head"><td colspan="5">① 深度 AI 与自动化（Vibe Coding 风格）</td></tr>
+          <tr>
+            <td class="feat-name">MCP 记账插件（Mac/Desktop）</td>
+            <td><span class="ver ver-v15">V1.5</span></td>
+            <td><span class="tag tag-adopt">采纳 · 差异化</span></td>
+            <td>官方 MCP Server 跑在用户 <b>Mac 本地</b>，直接读写 iCloud Drive 上的 Glassbook 数据库（受 App Group 权限）。Claude Desktop、Cline、Zed 开箱即用。不涉及任何远程服务器。</td>
+            <td>不违反「零云端」约束 —— 所有进程都在用户自己机器上跑，通过 iCloud 与手机数据一致。</td>
+          </tr>
+          <tr>
+            <td class="feat-name">语义自动打标（Apple Intelligence / BYO）</td>
+            <td><span class="ver ver-v10">V1.0</span></td>
+            <td><span class="tag tag-adopt">采纳</span></td>
+            <td>默认用 Apple Intelligence on-device 模型；Pro 用户可配置 <b>自定义 LLM 端点</b>（OpenAI / Claude / Gemini / Ollama / LM Studio 任选），用自己的 API Key 走自己的网关。</td>
+            <td>on-device 保隐私保默认可用；BYO 满足极客对速度、模型质量、本地部署 Ollama 的需求。</td>
+          </tr>
+          <tr>
+            <td class="feat-name">截图/短信静默识别</td>
+            <td><span class="ver ver-v10">V1.0</span></td>
+            <td><span class="tag tag-adopt">采纳</span></td>
+            <td>iOS：Shortcut 自动化 + Live Activity 悬浮确认条；Android：Notification Listener。看不到 App 也能完成入账。</td>
+            <td>把「手动记账」降到 0 次点击，这是留存率的关键阈值。</td>
+          </tr>
+
+          <tr class="cat-head"><td colspan="5">② 开发者与极客专属</td></tr>
+          <tr>
+            <td class="feat-name">订阅制服务管理</td>
+            <td><span class="ver ver-v10">V1.0</span></td>
+            <td><span class="tag tag-adopt">采纳 · MVP 核心</span></td>
+            <td>独立 Tab 或一级页面。支持 VPS / AI 订阅 / 域名 / 流媒体四大预设模板。多币种自动换算（汇率每小时更新）。续费日 T-3 / T-1 / 当日三级提醒。</td>
+            <td>技术消费者最痛的场景，对标 Bobby / Subby 但深度更深，中文记账 App 尚无认真做的。</td>
+          </tr>
+          <tr>
+            <td class="feat-name">汇率自动换算</td>
+            <td><span class="ver ver-v10">V1.0</span></td>
+            <td><span class="tag tag-adopt">采纳</span></td>
+            <td>与订阅功能绑定，首页显示「¥ + 折算后」。数据源：exchangerate-api.com。</td>
+            <td>订阅场景必需，单独拉出做没意义。</td>
+          </tr>
+          <tr>
+            <td class="feat-name">自定义大模型接入（BYO LLM）</td>
+            <td><span class="ver ver-v15">V1.5</span></td>
+            <td><span class="tag tag-adopt">采纳 · 新增</span></td>
+            <td>设置页新增「AI 引擎」分区。支持 OpenAI API、Claude API、Gemini API、本地 Ollama、LM Studio 五种预设，也支持自定义 OpenAI 兼容端点（baseURL + apiKey）。驱动打标、年度回顾、AI 洞察、问账。</td>
+            <td>零云端约束下的最优解：用户用自己的额度、自己的模型、自己的数据主权。</td>
+          </tr>
+          <tr>
+            <td class="feat-name">Webhook 事件推送</td>
+            <td><span class="ver ver-v15">V1.5</span></td>
+            <td><span class="tag tag-adopt">采纳 · 改为设备直出</span></td>
+            <td>手机 App 在预算超支 / 订阅到期 / 大额消费时，<b>直接从设备</b>向用户配置的 URL（Slack Webhook、飞书群机器人、n8n、自建 HTTP 接口）发送 POST。无中转服务器。</td>
+            <td>不需要云端也能实现 —— 只要手机联网时事件触发，设备自己是 HTTP Client。</td>
+          </tr>
+          <tr>
+            <td class="feat-name">Open REST API（对外）</td>
+            <td>—</td>
+            <td><span class="tag tag-defer">删除</span></td>
+            <td>原方案需要云端承载；与「零云端」冲突，砍掉。开放性改由 MCP + Webhook 承担（入站对话 / 出站事件双通道）。</td>
+            <td>MCP 已覆盖「外部程序查询数据」的需求，且隐私边界更清晰。</td>
+          </tr>
+          <tr>
+            <td class="feat-name">私有化部署（Docker Self-Host）</td>
+            <td>—</td>
+            <td><span class="tag tag-defer">删除</span></td>
+            <td>原方案需要 PostgreSQL 后端，与「零云端」冲突。替代方案：iCloud 已提供跨设备数据主权，且用户不需要会 Docker。</td>
+            <td>Local-First + iCloud 的组合已满足「数据我自己掌控」这一原始诉求。</td>
+          </tr>
+          <tr>
+            <td class="feat-name">本地数据库加密（Argon2id + AES-256）</td>
+            <td><span class="ver ver-v10">V1.0</span></td>
+            <td><span class="tag tag-adopt">采纳</span></td>
+            <td>SQLCipher 本地加密；密钥由 Face ID 解锁，不上云。</td>
+            <td>零额外开发成本（库成熟），但营销卖点强。</td>
+          </tr>
+
+          <tr class="cat-head"><td colspan="5">③ 家庭与育儿场景</td></tr>
+          <tr>
+            <td class="feat-name">神兽专项开支维度</td>
+            <td><span class="ver ver-v10">V1.0</span></td>
+            <td><span class="tag tag-adopt">采纳</span></td>
+            <td>分类体系里加「孩子」一级分类（下含教育 / 兴趣班 / 玩具 / 医疗 / 日用）。年度报告单独展示。</td>
+            <td>实现成本极低，但精准命中家庭用户，可做 App Store 截图主打。</td>
+          </tr>
+          <tr>
+            <td class="feat-name">家庭共享 + 分级隐私</td>
+            <td><span class="ver ver-v15">V1.5</span></td>
+            <td><span class="tag tag-adopt">采纳 · 走 CKShare</span></td>
+            <td>共享账本基于 <b>CloudKit CKShare</b>，苹果原生端到端加密。每笔交易三档可见性：家庭可见 / 仅伴侣 / 仅自己。数据永远不离开 Apple 生态。</td>
+            <td>不用自建同步服务器，家庭成员间通过 iCloud 账号直连。完美契合零云端约束。</td>
+          </tr>
+
+          <tr class="cat-head"><td colspan="5">④ 财务健康与「防御性」记账</td></tr>
+          <tr>
+            <td class="feat-name">沉没成本分析</td>
+            <td><span class="ver ver-v15">V1.5</span></td>
+            <td><span class="tag tag-adopt">采纳</span></td>
+            <td>基于订阅管理延伸：标记「30/90 天未使用」的订阅 + 一次性购买但未被复用的 App/硬件/课程。AI 给出「建议取消」清单。</td>
+            <td>解决极客人群特有的囤货焦虑，差异化 + 自省价值。</td>
+          </tr>
+          <tr>
+            <td class="feat-name">情绪记账</td>
+            <td><span class="ver ver-v10">V1.0</span></td>
+            <td><span class="tag tag-adopt">采纳 · 轻量</span></td>
+            <td>记账页新增可选「心情」chips：开心 / 后悔 / 刚需 / 犒赏 / 焦虑。年度回顾可做「快乐花费 vs 后悔花费」。</td>
+            <td>开发成本低但让产品有温度，配合年度报告形成情感钩子。</td>
+          </tr>
+          <tr>
+            <td class="feat-name">深圳生活成本基准（匿名社区）</td>
+            <td>—</td>
+            <td><span class="tag tag-defer">删除</span></td>
+            <td>必然需要汇总服务器；与「零云端」原则直接冲突。永久移除。</td>
+            <td>本地优先架构不适合做聚合社区类功能。</td>
+          </tr>
+          <tr>
+            <td class="feat-name">iCloud 同步</td>
+            <td><span class="ver ver-v10">V1.0</span></td>
+            <td><span class="tag tag-adopt">采纳 · 架构基础</span></td>
+            <td>CoreData + NSPersistentCloudKitContainer。用户 iPhone / iPad / Mac 三端数据自动同步，苹果提供端到端加密。首次登录用户 iCloud 即可，无需注册账号。</td>
+            <td>零云端方案的同步基石，用户不用信任任何第三方，只信任苹果。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== Section 2 · Roadmap ===== -->
+  <div class="section">
+    <div class="section-hd">
+      <span class="section-num">02</span>
+      <span class="section-title">三阶段路线图</span>
+      <span class="section-desc">从 MVP 到全功能 Pro 的三段式推进。每段都有明确的「核心卖点」和「KPI 验证指标」，不越级。</span>
+    </div>
+    <div class="roadmap">
+      <div class="stage stage-1 card">
+        <div class="stage-dot"></div>
+        <div class="stage-num">STAGE · 01</div>
+        <div class="stage-name">V1.0 Local-First MVP</div>
+        <div class="stage-timing">第 1–3 个月 · Launch</div>
+        <div class="stage-goal"><b>核心卖点：</b>一款「看起来就高级」的<b>零云端</b>记账 App，数据走 iCloud，两个杀手锏 —— <b>订阅管理</b>和<b>截图零点击入账</b>。</div>
+        <ul class="stage-feats">
+          <li>6 大核心页面 + 玻璃拟态视觉</li>
+          <li>智能账单识别（支付宝 / 微信 / 招行）</li>
+          <li>订阅管理中心（VPS / AI / 域名 / 流媒体）</li>
+          <li>多币种 + 汇率（仅调第三方只读汇率）</li>
+          <li>截图 / 短信静默识别（iOS Shortcuts）</li>
+          <li>语义自动打标（Apple Intelligence on-device）</li>
+          <li>情绪标签（轻量可选）· 神兽专项分类</li>
+          <li>SQLCipher 本地加密 + iCloud 同步</li>
+        </ul>
+      </div>
+      <div class="stage stage-2 card">
+        <div class="stage-dot"></div>
+        <div class="stage-num">STAGE · 02</div>
+        <div class="stage-name">V1.5 Developer Edition</div>
+        <div class="stage-timing">第 4–7 个月 · Pro 订阅上线</div>
+        <div class="stage-goal"><b>核心卖点：</b>接入<b>用户自带大模型</b>，Mac 端运行 MCP Server，让 Glassbook 成为可被对话的记账工具。¥28/月 Pro。</div>
+        <ul class="stage-feats">
+          <li>BYO LLM 接入（OpenAI / Claude / Gemini / Ollama）</li>
+          <li>Mac 端 MCP Server（进程运行在用户自己机器）</li>
+          <li>设备端 Webhook（事件直推 Slack / 飞书）</li>
+          <li>家庭共享 + 分级隐私（CKShare）</li>
+          <li>沉没成本分析面板</li>
+          <li>桌面小组件 & Apple Watch</li>
+          <li>年度回顾（可分享海报）</li>
+        </ul>
+      </div>
+      <div class="stage stage-3 card">
+        <div class="stage-dot"></div>
+        <div class="stage-num">STAGE · 03</div>
+        <div class="stage-name">V2.0 Apple Ecosystem</div>
+        <div class="stage-timing">第 8–12 个月 · 生态深耕</div>
+        <div class="stage-goal"><b>核心卖点：</b>把 Apple 生态吃透。iPad / Mac Catalyst / Watch / Vision Pro 一套数据体验。</div>
+        <ul class="stage-feats">
+          <li>Mac Catalyst 原生应用</li>
+          <li>iPad 分屏（账单 + 统计双栏）</li>
+          <li>AI 财务顾问（多轮对话 · BYO LLM 驱动）</li>
+          <li>Apple Watch 独立 App</li>
+          <li>收据 OCR + 发票抵扣 PDF 导出</li>
+          <li>visionOS 空间账本（选做）</li>
+          <li style="color:var(--muted); text-decoration: line-through;">Docker Self-Host（砍）</li>
+          <li style="color:var(--muted); text-decoration: line-through;">匿名社区（砍）</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Section 3 · Interaction Diagrams ===== -->
+  <div class="section">
+    <div class="section-hd">
+      <span class="section-num">03</span>
+      <span class="section-title">6 张核心交互图</span>
+      <span class="section-desc">挑出 6 个最体现差异化的场景，以「真实屏幕 + 流程箭头 + 关键数据」的方式画出，可以直接交给工程师和设计师落地。</span>
+    </div>
+
+    <!-- ===== Diagram 1 · MCP 对话记账 ===== -->
+    <div class="card diagram">
+      <div class="diag-hd">
+        <div class="diag-num">DIAGRAM 01 · MCP CONVERSATIONAL BOOKKEEPING（LOCAL-FIRST）</div>
+        <div class="diag-title">对话即记账 · Mac 端 MCP（零云端）</div>
+        <div class="diag-sub">MCP Server 作为独立进程跑在用户自己的 Mac 上（通过 <code>brew install glassbook-mcp</code> 或官方 DMG 安装）。它直接读写 iCloud Drive 上的共享数据库，和 iPhone 上的 Glassbook App 共用同一份数据。<b>没有任何远程服务器。</b></div>
+      </div>
+      <div class="seq">
+        <!-- Actor 1: Claude -->
+        <div class="actor">
+          <div class="actor-hd claude">🤖 Claude Desktop</div>
+          <div class="msg">
+            <span class="msg-step">STEP 1 · USER</span>
+            「刚刚打车去机场花了 86 块，记一下」
+          </div>
+          <div class="arrow-row">↓</div>
+          <div class="msg">
+            <span class="msg-step">STEP 2 · LLM 解析</span>
+            判定为记账意图，提取金额 / 分类 / 时间
+            <span class="msg-code">{ intent: <span style="color:#e5c07b">"add_txn"</span>,
+  amount: 86,
+  category: <span style="color:#e5c07b">"transportation"</span> }</span>
+          </div>
+          <div class="arrow-row">↓</div>
+          <div class="msg">
+            <span class="msg-step">STEP 5 · 回复用户</span>
+            「已记一笔交通支出 ¥86。本月交通已花 ¥342，占预算 57%。」
+          </div>
+        </div>
+        <!-- Actor 2: MCP -->
+        <div class="actor">
+          <div class="actor-hd mcp">🔌 Glassbook MCP Server</div>
+          <div class="msg">
+            <span class="msg-step">TOOL DISCOVERY</span>
+            启动时向 Claude 暴露 6 个 tool：
+            <div style="margin-top:6px; font-family: 'SF Mono', Consolas, monospace; font-size:10.5px; line-height:1.8;">
+              add_transaction()<br>
+              query_budget()<br>
+              list_subscriptions()<br>
+              get_monthly_summary()<br>
+              find_similar_txns()<br>
+              set_budget()
+            </div>
+          </div>
+          <div class="arrow-row">↕</div>
+          <div class="msg">
+            <span class="msg-step">STEP 3 · 调用本地 App</span>
+            通过 localhost:7321 推给 App：
+            <span class="msg-code">POST /api/v1/txn
+{ amount: 86,
+  category: <span style="color:#e5c07b">"taxi"</span>,
+  source: <span style="color:#e5c07b">"mcp"</span> }</span>
+          </div>
+        </div>
+        <!-- Actor 3: iCloud + iPhone -->
+        <div class="actor">
+          <div class="actor-hd glass">☁️ iCloud ↔ 📱 iPhone</div>
+          <div class="msg">
+            <span class="msg-step">STEP 4 · MCP 写 iCloud Drive</span>
+            MCP 用 App Group 权限打开 iCloud Drive 上的 SQLCipher 数据库，写入新交易。<br>
+            <span style="color:var(--muted); font-size:10.5px;">（文件路径：~/Library/Mobile Documents/iCloud~glassbook/）</span>
+          </div>
+          <div class="arrow-row">↓</div>
+          <div class="msg">
+            <span class="msg-step">STEP 5 · Apple 端到端加密同步</span>
+            iCloud 把变更同步到用户所有设备。不经 Anthropic / Glassbook 任何服务器。
+            <span class="msg-code">CKRecord.modify
+  → iPhone · iPad · Watch</span>
+          </div>
+          <div class="arrow-row">↓</div>
+          <div class="msg">
+            <span class="msg-step">STEP 6 · iPhone 前台收到</span>
+            Glassbook App 下次唤起 → 显示最新数据 + Live Activity 回看条。全程无需用户主动刷新。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Diagram 2 · Subscription Management ===== -->
+    <div class="card diagram">
+      <div class="diag-hd">
+        <div class="diag-num">DIAGRAM 02 · SUBSCRIPTION TRACKER</div>
+        <div class="diag-title">订阅管理中心 · 面向技术消费者</div>
+        <div class="diag-sub">一级页面。四大分组（云服务 / AI 工具 / 域名 / 流媒体），多币种自动换算，续费倒计时提醒。长按任一项可快速标记「闲置」触发取消建议。</div>
+      </div>
+      <div class="dual">
+        <!-- Phone 1: Subscription list -->
+        <div class="dual-col">
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="phone-screen">
+              <div class="status-bar"><span>9:41</span><span>● ● ●</span></div>
+              <div class="screen-pad">
+                <div class="scr-sub">SUBSCRIPTIONS</div>
+                <div class="scr-ttl">订阅管理</div>
+                <div class="hero">
+                  <div class="hero-label">本月订阅支出</div>
+                  <div class="hero-val">¥ 687.20</div>
+                  <div class="hero-sub">14 项活跃订阅 · 3 天后有续费</div>
+                </div>
+                <div class="scr-sub" style="margin-top:4px">⚡ 云服务</div>
+                <div class="sub-card">
+                  <div class="sub-row">
+                    <div class="sub-icon" style="background:#3B82F6">RN</div>
+                    <div class="sub-info">
+                      <div class="sub-name">RackNerd KVM</div>
+                      <div class="sub-meta">年付 · <span class="badge-warn">T-3 续费</span></div>
+                    </div>
+                    <div>
+                      <div class="sub-amt">¥ 124.80</div>
+                      <div class="sub-ccy">US$ 17.20</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="sub-card">
+                  <div class="sub-row">
+                    <div class="sub-icon" style="background:#0F766E">DM</div>
+                    <div class="sub-info">
+                      <div class="sub-name">DMIT Tokyo Pro</div>
+                      <div class="sub-meta">月付 · 下次 05.12</div>
+                    </div>
+                    <div>
+                      <div class="sub-amt">¥ 217.40</div>
+                      <div class="sub-ccy">HK$ 239.00</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="scr-sub" style="margin-top:14px">🤖 AI 工具</div>
+                <div class="sub-card">
+                  <div class="sub-row">
+                    <div class="sub-icon" style="background:#D97757">CL</div>
+                    <div class="sub-info">
+                      <div class="sub-name">Claude Pro</div>
+                      <div class="sub-meta">月付 · <span class="badge-ok">使用中</span></div>
+                    </div>
+                    <div>
+                      <div class="sub-amt">¥ 145.20</div>
+                      <div class="sub-ccy">US$ 20.00</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="sub-card">
+                  <div class="sub-row">
+                    <div class="sub-icon" style="background:#10A37F">GP</div>
+                    <div class="sub-info">
+                      <div class="sub-name">ChatGPT Plus</div>
+                      <div class="sub-meta">月付 · <span class="badge-warn">闲置 45 天</span></div>
+                    </div>
+                    <div>
+                      <div class="sub-amt">¥ 145.20</div>
+                      <div class="sub-ccy">US$ 20.00</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dual-cap">订阅首页<small>按类别分组 · 多币种原价 + 折算价同屏显示</small></div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <!-- Phone 2: Subscription detail with renewal reminder -->
+        <div class="dual-col">
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="phone-screen">
+              <div class="status-bar"><span>9:41</span><span>● ● ●</span></div>
+              <div class="screen-pad">
+                <div class="scr-sub">← RACKNERD KVM</div>
+                <div class="hero" style="background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(255,255,255,0.7));">
+                  <div class="sub-icon" style="background:#3B82F6; width:48px; height:48px; font-size:14px; margin-bottom:10px">RN</div>
+                  <div class="hero-label" style="margin-bottom:4px">年度总成本</div>
+                  <div class="hero-val">¥ 124.80</div>
+                  <div class="hero-sub">US$ 17.20 · 汇率 7.26（实时）</div>
+                </div>
+                <div class="notif" style="background: rgba(200, 23, 30, 0.1); border: 1px solid rgba(200, 23, 30, 0.2);">
+                  <div class="notif-hd">
+                    <span class="notif-app" style="color: var(--danger)">⏰ 续费提醒</span>
+                    <span class="notif-time">3 天后</span>
+                  </div>
+                  <div class="notif-title">2026.04.22 自动扣费</div>
+                  <div class="notif-body">预计扣款 US$ 17.20（约 ¥125）。本台服务器过去 30 天访问量 2,340 次。</div>
+                  <div class="notif-actions">
+                    <div class="notif-btn">延期提醒</div>
+                    <div class="notif-btn notif-btn-p">前往官网</div>
+                  </div>
+                </div>
+                <div class="sub-card">
+                  <div style="font-size:11px; color: var(--muted); letter-spacing:0.05em; margin-bottom:8px">使用健康度</div>
+                  <div style="font-size:13px; color: var(--success); font-weight:600;">✓ 活跃使用中</div>
+                  <div style="font-size:11px; color: var(--ink-soft); margin-top:4px; line-height:1.5">SSH 登录 42 次/月 · CPU 均负载 18%</div>
+                </div>
+                <div class="sub-card">
+                  <div style="font-size:11px; color: var(--muted); letter-spacing:0.05em; margin-bottom:8px">历史账单</div>
+                  <div style="font-size:11.5px; line-height:1.8; color: var(--ink-soft);">
+                    2025.04 · ¥ 122.60 · 汇率 7.13<br>
+                    2024.04 · ¥ 117.30 · 汇率 6.82<br>
+                    2023.04 · ¥ 113.90 · 汇率 6.62
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dual-cap">订阅详情 + 续费预警<small>T-3 智能提醒 · 历史汇率可回溯</small></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Diagram 3 · Silent Screenshot Import ===== -->
+    <div class="card diagram">
+      <div class="diag-hd">
+        <div class="diag-num">DIAGRAM 03 · SILENT CAPTURE</div>
+        <div class="diag-title">零点击入账 · iOS Shortcuts + Live Activity</div>
+        <div class="diag-sub">用户截屏任意支付页面，iOS 快捷指令自动触发 → 后台识别 → Live Activity 顶部悬浮条 3 秒确认 → 轻触保存或自动入账（5 秒未操作）。全程无需打开 App。</div>
+      </div>
+      <div class="dual">
+        <div class="dual-col">
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="phone-screen">
+              <div class="status-bar"><span>9:41</span><span>● ● ●</span></div>
+              <div class="screen-pad" style="padding:8px 18px;">
+                <!-- Simulated payment screenshot background -->
+                <div style="background: var(--wechat); border-radius: 20px; padding: 40px 20px; text-align: center; color: white; margin-top: 30px; box-shadow: 0 8px 24px rgba(7,193,96,0.3);">
+                  <div style="font-size:11px; opacity:0.8; letter-spacing:0.1em">WECHAT PAY</div>
+                  <div style="font-size:36px; font-weight:700; margin:12px 0;">¥ 28.00</div>
+                  <div style="font-size:12px; opacity:0.9">支付成功</div>
+                  <div style="font-size:10px; opacity:0.75; margin-top:6px">瑞幸咖啡 · 15:42</div>
+                </div>
+                <!-- Live Activity style floating confirmation -->
+                <div style="margin-top: 14px; background: rgba(21,23,42,0.92); color: white; border-radius: 20px; padding: 14px 16px; backdrop-filter: blur(20px); box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                  <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:36px; height:36px; border-radius:10px; background: linear-gradient(135deg, #FFB5C8, #B8D6FF); display:flex; align-items:center; justify-content:center; font-size:16px;">💎</div>
+                    <div style="flex:1">
+                      <div style="font-size:10px; opacity:0.7; letter-spacing:0.1em">GLASSBOOK</div>
+                      <div style="font-size:13px; font-weight:600">识别到 ¥28 餐饮支出</div>
+                      <div style="font-size:10.5px; opacity:0.7; margin-top:2px">瑞幸咖啡 · 5 秒后自动保存</div>
+                    </div>
+                    <div style="font-size:12px; font-weight:600; background: rgba(255,255,255,0.2); padding: 5px 11px; border-radius: 8px;">✓</div>
+                  </div>
+                  <div style="height: 3px; background: rgba(255,255,255,0.2); border-radius: 2px; margin-top:10px; overflow: hidden;">
+                    <div style="height:100%; width: 60%; background: linear-gradient(90deg, #FFB5C8, #B8D6FF); border-radius: 2px;"></div>
+                  </div>
+                </div>
+                <div style="margin-top: 12px; padding: 10px 12px; background: rgba(255,255,255,0.7); border-radius: 12px; font-size: 10.5px; color: var(--ink-soft); line-height: 1.5; text-align:center;">
+                  ← 点击跳过自动保存<br>
+                  → 滑动到详细编辑页
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dual-cap">截屏瞬间 · Live Activity 悬浮确认<small>3 秒识别 + 5 秒倒计时 = 零点击入账</small></div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="dual-col">
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="phone-screen">
+              <div class="status-bar"><span>9:41</span><span>● ● ●</span></div>
+              <div class="screen-pad">
+                <div class="scr-sub">SETTINGS · AUTOMATION</div>
+                <div class="scr-ttl">自动化记账</div>
+                <div class="sub-card" style="padding: 14px;">
+                  <div class="dev-title" style="margin-bottom:0;">
+                    <span>截屏自动识别</span>
+                    <div class="dev-toggle"></div>
+                  </div>
+                  <div style="font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5;">
+                    iOS 快捷指令监听截屏相册 · 非支付截图会被自动忽略
+                  </div>
+                </div>
+                <div class="sub-card" style="padding: 14px;">
+                  <div class="dev-title" style="margin-bottom:0;">
+                    <span>短信入账（招行 / 建行 / 工行）</span>
+                    <div class="dev-toggle"></div>
+                  </div>
+                  <div style="font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5;">
+                    仅本地正则匹配 · 原文不上传
+                  </div>
+                </div>
+                <div class="sub-card" style="padding: 14px;">
+                  <div class="dev-title" style="margin-bottom:0;">
+                    <span>MCP 对话入账</span>
+                    <div class="dev-toggle"></div>
+                  </div>
+                  <div style="font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5;">
+                    Claude Desktop / Cline / Zed 已连接
+                  </div>
+                </div>
+                <div class="sub-card">
+                  <div style="font-size: 11px; color: var(--muted); letter-spacing:0.05em; margin-bottom: 10px;">自动保存延迟</div>
+                  <div style="display: flex; gap: 6px;">
+                    <div class="mood-chip">立即</div>
+                    <div class="mood-chip selected">5 秒</div>
+                    <div class="mood-chip">10 秒</div>
+                    <div class="mood-chip">关闭</div>
+                  </div>
+                </div>
+                <div class="sub-card" style="background: rgba(244, 223, 168, 0.4); border-color: rgba(244, 223, 168, 0.6);">
+                  <div style="font-size: 11px; font-weight: 600; color: #8a6d1f;">本月已自动识别</div>
+                  <div style="font-size: 24px; font-weight: 700; margin-top: 4px; color: #8a6d1f;">42 笔 · ¥ 1,284</div>
+                  <div style="font-size: 10.5px; color: #8a6d1f; margin-top: 4px; opacity: 0.8;">比手动记账节省约 14 分钟</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dual-cap">自动化设置页<small>三种自动化通道开关 + 省时可视化</small></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Diagram 4 · BYO LLM + Device Webhook ===== -->
+    <div class="card diagram">
+      <div class="diag-hd">
+        <div class="diag-num">DIAGRAM 04 · BRING-YOUR-OWN LLM & DEVICE WEBHOOK</div>
+        <div class="diag-title">自定义大模型接入 + 设备端 Webhook</div>
+        <div class="diag-sub">零云端不等于零 AI。用户在设置里配置自己的 LLM 端点（OpenAI / Claude / Gemini / 自部署 Ollama / LM Studio），App 直接从手机调用。Webhook 也是同理：事件发生时手机 App 直接 POST 到用户配置的 URL，中间不经过任何 Glassbook 服务器。</div>
+      </div>
+      <div class="dual">
+        <div class="dual-col">
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="phone-screen">
+              <div class="status-bar"><span>9:41</span><span>● ● ●</span></div>
+              <div class="screen-pad">
+                <div class="scr-sub">SETTINGS · AI ENGINE</div>
+                <div class="scr-ttl">AI 引擎</div>
+                <div class="sub-card" style="background: linear-gradient(135deg, rgba(74,138,94,0.12), rgba(255,255,255,0.7));">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:32px; height:32px; border-radius:10px; background:#4A8A5E; display:flex; align-items:center; justify-content:center; color:white; font-size:16px;">🍎</div>
+                    <div style="flex:1;">
+                      <div style="font-size:12.5px; font-weight:600;">Apple Intelligence</div>
+                      <div style="font-size:10.5px; color: var(--muted);">on-device · 默认 · 免费</div>
+                    </div>
+                    <span class="badge-ok">当前</span>
+                  </div>
+                </div>
+                <div class="scr-sub" style="margin-top:14px; margin-bottom:6px;">或者接入自己的模型（Pro）</div>
+                <!-- OpenAI -->
+                <div class="sub-card">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:32px; height:32px; border-radius:10px; background:#10A37F; display:flex; align-items:center; justify-content:center; color:white; font-size:13px; font-weight:700;">AI</div>
+                    <div style="flex:1;">
+                      <div style="font-size:12.5px; font-weight:600;">OpenAI</div>
+                      <div style="font-size:10.5px; color: var(--muted);">gpt-4o · 你的 API Key</div>
+                    </div>
+                    <div class="dev-toggle"></div>
+                  </div>
+                </div>
+                <!-- Claude -->
+                <div class="sub-card">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:32px; height:32px; border-radius:10px; background:#D97757; display:flex; align-items:center; justify-content:center; color:white; font-size:13px; font-weight:700;">Cl</div>
+                    <div style="flex:1;">
+                      <div style="font-size:12.5px; font-weight:600;">Anthropic Claude</div>
+                      <div style="font-size:10.5px; color: var(--muted);">claude-sonnet-4-6 · 已连接</div>
+                    </div>
+                    <div class="dev-toggle" style="background:var(--ink);"></div>
+                  </div>
+                </div>
+                <!-- Gemini -->
+                <div class="sub-card">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:32px; height:32px; border-radius:10px; background:#4285F4; display:flex; align-items:center; justify-content:center; color:white; font-size:13px; font-weight:700;">G</div>
+                    <div style="flex:1;">
+                      <div style="font-size:12.5px; font-weight:600;">Google Gemini</div>
+                      <div style="font-size:10.5px; color: var(--muted);">gemini-2.0-flash</div>
+                    </div>
+                    <div class="dev-toggle" style="background:rgba(21,23,42,0.2);"></div>
+                  </div>
+                </div>
+                <!-- Ollama -->
+                <div class="sub-card" style="background: linear-gradient(135deg, rgba(215,196,255,0.3), rgba(255,255,255,0.7));">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:32px; height:32px; border-radius:10px; background:#15172A; display:flex; align-items:center; justify-content:center; color:white; font-size:13px;">🦙</div>
+                    <div style="flex:1;">
+                      <div style="font-size:12.5px; font-weight:600;">Ollama（本地）</div>
+                      <div class="dev-key" style="font-size:10px; margin-top:2px;">http://192.168.1.10:11434</div>
+                    </div>
+                    <div class="dev-toggle" style="background:rgba(21,23,42,0.2);"></div>
+                  </div>
+                </div>
+                <!-- Custom -->
+                <div class="sub-card" style="border-dashed: 1px dashed var(--muted); background: rgba(255,255,255,0.5);">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:32px; height:32px; border-radius:10px; background:rgba(21,23,42,0.08); display:flex; align-items:center; justify-content:center; font-size:16px; color:var(--ink-soft);">+</div>
+                    <div style="flex:1; font-size:12.5px; color: var(--ink-soft);">自定义 OpenAI 兼容端点</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dual-cap">AI 引擎设置<small>5 种预设 + 自定义端点 · 所有 API Key 存 iOS Keychain</small></div>
+        </div>
+        <div class="flow-arrow">+</div>
+        <div class="dual-col">
+          <!-- Right: BYO LLM detail + Webhook -->
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="phone-screen">
+              <div class="status-bar"><span>9:41</span><span>● ● ●</span></div>
+              <div class="screen-pad">
+                <div class="scr-sub">← CLAUDE · 配置</div>
+                <div class="scr-ttl">Claude 引擎</div>
+                <div class="sub-card">
+                  <div style="font-size: 10.5px; color: var(--muted); letter-spacing:0.05em;">Base URL</div>
+                  <div class="dev-key" style="margin-top: 6px; font-size: 10.5px;">https://api.anthropic.com</div>
+                </div>
+                <div class="sub-card">
+                  <div style="font-size: 10.5px; color: var(--muted); letter-spacing:0.05em;">API Key</div>
+                  <div class="dev-key" style="margin-top: 6px; font-size: 10.5px;">sk-ant-api03-••••••••••••••</div>
+                  <div style="font-size: 10px; color: var(--success); margin-top: 4px;">✓ 存于 iOS Keychain · 不会同步到 iCloud</div>
+                </div>
+                <div class="sub-card">
+                  <div style="font-size: 10.5px; color: var(--muted); letter-spacing:0.05em; margin-bottom: 6px;">模型</div>
+                  <div style="display:flex; gap:6px; flex-wrap: wrap;">
+                    <div class="mood-chip">Opus 4.6</div>
+                    <div class="mood-chip selected">Sonnet 4.6</div>
+                    <div class="mood-chip">Haiku 4.5</div>
+                  </div>
+                </div>
+                <div class="sub-card" style="background: rgba(74,138,94,0.1);">
+                  <div style="font-size: 11px; font-weight: 600; color: var(--success); margin-bottom: 4px;">✓ 连接正常</div>
+                  <div style="font-size: 11px; color: var(--ink-soft); line-height: 1.5;">本月已调用 147 次 · 估算花费 US$ 0.82</div>
+                </div>
+                <!-- Webhook section -->
+                <div class="scr-sub" style="margin-top: 14px;">设备端 Webhook（无中转）</div>
+                <div class="sub-card">
+                  <div style="font-size: 10.5px; color: var(--muted); letter-spacing:0.05em; margin-bottom: 8px;">事件 → Slack / 飞书</div>
+                  <div style="background: #0F1020; color: #a5e7a5; padding: 10px; border-radius: 8px; font-family: 'SF Mono', Consolas, monospace; font-size: 9.5px; line-height: 1.55;">
+📱 iPhone&nbsp;──┐<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│ <span style="color:#e5c07b">POST /hooks/</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼<br>
+<span style="color:#98c379">Slack · 飞书 · n8n</span><br>
+<br>
+<span style="color:#888">// 无中转服务器</span>
+                  </div>
+                </div>
+                <div class="dev-sec" style="margin-top: 8px;">
+                  <div class="dev-row" style="border:none;">
+                    <div>
+                      <div style="font-size:11.5px; font-weight:600;">预算超支</div>
+                      <div class="dev-key" style="margin-top:2px;">→ Slack #fin-alerts</div>
+                    </div>
+                    <div class="dev-toggle"></div>
+                  </div>
+                  <div class="dev-row">
+                    <div>
+                      <div style="font-size:11.5px; font-weight:600;">订阅 T-3 到期</div>
+                      <div class="dev-key" style="margin-top:2px;">→ 飞书机器人</div>
+                    </div>
+                    <div class="dev-toggle"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dual-cap">Claude 引擎详情 + Webhook<small>API Key 走 Keychain · Webhook 设备直出</small></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Diagram 5 · Family Sharing with Privacy ===== -->
+    <div class="card diagram">
+      <div class="diag-hd">
+        <div class="diag-num">DIAGRAM 05 · FAMILY × CKSHARE</div>
+        <div class="diag-title">家庭共享 · CKShare 分级隐私</div>
+        <div class="diag-sub">基于 CloudKit CKShare：家庭成员之间通过 iCloud 账号直连，苹果原生端到端加密。每一笔交易在记账时选择可见范围：家庭 / 伴侣 / 自己 —— 仅自己的数据保留在个人 CKPrivateDatabase，永不进入共享区。</div>
+      </div>
+      <div class="dual">
+        <div class="dual-col">
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="phone-screen">
+              <div class="status-bar"><span>9:41</span><span>● ● ●</span></div>
+              <div class="screen-pad">
+                <div class="scr-sub">FAMILY · 深圳之家</div>
+                <div class="scr-ttl">家庭账本</div>
+                <div class="family-member">
+                  <div class="avatar" style="background: #3B82F6">R</div>
+                  <div class="mem-info">
+                    <div class="mem-name">Roger（我）</div>
+                    <div class="mem-role">管理员 · 全部权限</div>
+                  </div>
+                  <div class="lock-icn">🔓</div>
+                </div>
+                <div class="family-member">
+                  <div class="avatar" style="background: #EC4899">L</div>
+                  <div class="mem-info">
+                    <div class="mem-name">Lily</div>
+                    <div class="mem-role">成员 · 可记账/查看</div>
+                  </div>
+                  <div class="lock-icn">🔒</div>
+                </div>
+                <div class="family-member">
+                  <div class="avatar" style="background: #F59E0B">小</div>
+                  <div class="mem-info">
+                    <div class="mem-name">小朋友（神兽）</div>
+                    <div class="mem-role">被动维度 · 不登录</div>
+                  </div>
+                  <div class="lock-icn">👀</div>
+                </div>
+                <div class="hero" style="margin-top: 12px;">
+                  <div class="hero-label">本月家庭总支出</div>
+                  <div class="hero-val">¥ 8,472</div>
+                  <div class="hero-sub">
+                    👨 Roger 4,280 · 👩 Lily 3,492 · 👶 小朋友 700<br>
+                    <span style="color:var(--muted); font-size:10px;">不含任一方的私房钱</span>
+                  </div>
+                </div>
+                <div class="sub-card">
+                  <div style="font-size:11px; color: var(--muted); letter-spacing:0.05em; margin-bottom: 6px;">小朋友专项（本月）</div>
+                  <div style="display:flex; justify-content: space-between; font-size:12px;">
+                    <span>兴趣班</span><span style="font-weight:600">¥ 320</span>
+                  </div>
+                  <div style="display:flex; justify-content: space-between; font-size:12px; margin-top: 6px;">
+                    <span>绘本 / 玩具</span><span style="font-weight:600">¥ 245</span>
+                  </div>
+                  <div style="display:flex; justify-content: space-between; font-size:12px; margin-top: 6px;">
+                    <span>医疗 / 保健</span><span style="font-weight:600">¥ 135</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dual-cap">家庭首页<small>三种权限角色 · 神兽专项开支独立统计</small></div>
+        </div>
+        <div class="flow-arrow">←</div>
+        <div class="dual-col">
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="phone-screen">
+              <div class="status-bar"><span>9:41</span><span>● ● ●</span></div>
+              <div class="screen-pad">
+                <div class="scr-sub">ADD TRANSACTION</div>
+                <div class="scr-ttl">新增一笔</div>
+                <div style="text-align:center; padding: 20px 0 10px;">
+                  <div style="font-size:40px; font-weight:700; letter-spacing:-0.02em;">¥ 268.00</div>
+                  <div style="font-size:12px; color:var(--muted); margin-top:4px;">星巴克 · 臻选咖啡礼盒</div>
+                </div>
+                <div class="sub-card">
+                  <div style="font-size:10.5px; color: var(--muted); letter-spacing:0.05em; margin-bottom:10px;">👁 可见范围 · 按笔隐私</div>
+                  <div style="display:flex; gap:6px;">
+                    <div class="mood-chip">
+                      👨‍👩‍👧 家庭可见
+                    </div>
+                    <div class="mood-chip">
+                      💞 仅伴侣
+                    </div>
+                    <div class="mood-chip selected">
+                      🔒 仅自己
+                    </div>
+                  </div>
+                  <div style="font-size:10.5px; color: var(--ink-soft); margin-top: 10px; line-height: 1.55; padding:8px; background: rgba(255,255,255,0.6); border-radius:8px;">
+                    这笔支出只会在你的账本里出现。家庭首页、伴侣的查询都不会看到。<br>
+                    <span style="color:var(--muted); font-size:10px;">私房钱不会计入家庭总支出</span>
+                  </div>
+                </div>
+                <div class="sub-card">
+                  <div style="font-size:11px; color: var(--muted); letter-spacing:0.05em; margin-bottom:8px;">分类</div>
+                  <div style="font-size: 13px; font-weight:600;">🎁 送礼 · 母亲节</div>
+                </div>
+                <div class="sub-card">
+                  <div style="font-size:11px; color: var(--muted); letter-spacing:0.05em; margin-bottom:6px;">😊 情绪</div>
+                  <div class="mood-row" style="margin-bottom:0;">
+                    <div class="mood-chip selected">开心</div>
+                    <div class="mood-chip">犒赏</div>
+                    <div class="mood-chip">刚需</div>
+                    <div class="mood-chip">后悔</div>
+                  </div>
+                </div>
+                <div style="margin-top:10px; padding: 12px; background: var(--ink); color: white; border-radius: 14px; text-align:center; font-weight:600; font-size:14px;">
+                  保存（仅我可见）
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dual-cap">记账页 · 可见范围选择<small>三档隐私 + 情绪标签顺手打</small></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Diagram 6 · Emotional & Sunk Cost ===== -->
+    <div class="card diagram">
+      <div class="diag-hd">
+        <div class="diag-num">DIAGRAM 06 · FINANCIAL WELLNESS</div>
+        <div class="diag-title">情绪记账 & 沉没成本分析</div>
+        <div class="diag-sub">让数字有温度：每一笔可贴心情标签，年度回顾给出「快乐值最高的消费」「后悔最多的消费」。同时扫描所有订阅和一次性购买，列出闲置 30/90 天的「沉没成本清单」。</div>
+      </div>
+      <div class="dual">
+        <div class="dual-col">
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="phone-screen">
+              <div class="status-bar"><span>9:41</span><span>● ● ●</span></div>
+              <div class="screen-pad">
+                <div class="scr-sub">YEAR-IN-REVIEW · 2026 Q1</div>
+                <div class="scr-ttl">情绪账本</div>
+                <div class="hero" style="background: linear-gradient(135deg, rgba(74,138,94,0.2), rgba(255,255,255,0.7));">
+                  <div class="hero-label">💚 快乐消费</div>
+                  <div class="hero-val" style="color: var(--success)">¥ 3,420</div>
+                  <div class="hero-sub">42 笔 · 平均 ¥81/笔 · 最爱：咖啡、书、给家人的礼物</div>
+                </div>
+                <div class="hero" style="background: linear-gradient(135deg, rgba(200,23,30,0.12), rgba(255,255,255,0.7));">
+                  <div class="hero-label">💔 后悔消费</div>
+                  <div class="hero-val" style="color: var(--danger)">¥ 1,840</div>
+                  <div class="hero-sub">8 笔 · 大多是冲动下单的电子产品</div>
+                </div>
+                <div class="sub-card">
+                  <div style="font-size:11px; color: var(--muted); letter-spacing:0.05em; margin-bottom:10px;">情绪分布（近 90 天）</div>
+                  <div style="display:flex; gap:4px; height: 30px; border-radius: 8px; overflow:hidden;">
+                    <div style="flex: 38; background: var(--success);"></div>
+                    <div style="flex: 28; background: var(--blue);"></div>
+                    <div style="flex: 18; background: var(--gold);"></div>
+                    <div style="flex: 10; background: var(--danger);"></div>
+                    <div style="flex: 6; background: var(--purple);"></div>
+                  </div>
+                  <div style="display:flex; justify-content: space-between; font-size:10.5px; margin-top: 8px; color: var(--ink-soft);">
+                    <span>开心 38%</span>
+                    <span>刚需 28%</span>
+                    <span>犒赏 18%</span>
+                    <span>后悔 10%</span>
+                    <span>其他 6%</span>
+                  </div>
+                </div>
+                <div class="sub-card" style="background: rgba(244,223,168,0.3);">
+                  <div style="font-size:11px; color: #8a6d1f; font-weight:600; margin-bottom:4px;">💡 AI 发现</div>
+                  <div style="font-size:11.5px; color: var(--ink-soft); line-height:1.6;">你的后悔消费 65% 发生在晚上 22:00 之后。建议设置深夜消费提醒。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dual-cap">情绪账本 Q1 报告<small>快乐 vs 后悔 · AI 洞察消费行为</small></div>
+        </div>
+        <div class="flow-arrow">+</div>
+        <div class="dual-col">
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="phone-screen">
+              <div class="status-bar"><span>9:41</span><span>● ● ●</span></div>
+              <div class="screen-pad">
+                <div class="scr-sub">SUNK COST AUDIT</div>
+                <div class="scr-ttl">沉没成本</div>
+                <div class="hero" style="background: linear-gradient(135deg, rgba(200,23,30,0.12), rgba(255,255,255,0.7));">
+                  <div class="hero-label" style="color: var(--danger)">🎯 可省回</div>
+                  <div class="hero-val">¥ 824 / 月</div>
+                  <div class="hero-sub">识别到 6 项闲置订阅 + 3 项吃灰硬件</div>
+                </div>
+                <div class="scr-sub" style="margin-top: 4px;">闲置订阅（30+ 天未使用）</div>
+                <div class="sunk-item">
+                  <div class="sunk-icn">GP</div>
+                  <div>
+                    <div class="sunk-name">ChatGPT Plus</div>
+                    <div class="sunk-days">闲置 45 天 · 已被 Claude 替代</div>
+                  </div>
+                  <div class="sunk-amt">¥145/月</div>
+                </div>
+                <div class="sunk-item">
+                  <div class="sunk-icn">DM</div>
+                  <div>
+                    <div class="sunk-name">DMIT Tokyo Pro</div>
+                    <div class="sunk-days">闲置 62 天 · SSH 无登录</div>
+                  </div>
+                  <div class="sunk-amt">¥217/月</div>
+                </div>
+                <div class="sunk-item">
+                  <div class="sunk-icn" style="background: #8B5CF6">NF</div>
+                  <div>
+                    <div class="sunk-name">Netflix 尊享版</div>
+                    <div class="sunk-days">闲置 38 天</div>
+                  </div>
+                  <div class="sunk-amt">¥128/月</div>
+                </div>
+                <div class="scr-sub" style="margin-top: 14px;">吃灰硬件（&gt;90 天未用）</div>
+                <div class="sunk-item" style="background: rgba(244,223,168,0.3); border-color: var(--gold);">
+                  <div class="sunk-icn" style="background: #8a6d1f">📷</div>
+                  <div>
+                    <div class="sunk-name">富士 X100V · 2024.11 购</div>
+                    <div class="sunk-days">闲置 127 天 · 原值 ¥10,990</div>
+                  </div>
+                  <div class="sunk-amt" style="color: #8a6d1f">→ 建议出</div>
+                </div>
+                <div style="margin-top: 12px; padding: 12px; background: var(--ink); color: white; border-radius: 14px; text-align:center; font-weight: 600; font-size: 13px;">
+                  一键生成取消清单 →
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dual-cap">沉没成本审计<small>订阅 + 一次性购买 + AI 退订建议</small></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== Section 4 · Architecture ===== -->
+  <div class="section">
+    <div class="section-hd">
+      <span class="section-num">04</span>
+      <span class="section-title">Local-First 技术架构</span>
+      <span class="section-desc">没有 Glassbook 自己的服务器。三层全部在用户自己的设备或 Apple/用户选定的第三方上。</span>
+    </div>
+    <div class="card arch">
+      <div class="arch-col">
+        <h4>📱 Client（Apple 生态）<small>iPhone · iPad · Mac · Watch</small></h4>
+        <div class="arch-item">SwiftUI + TCA <small>UI 状态</small></div>
+        <div class="arch-item">CoreData + SQLCipher <small>本地加密库</small></div>
+        <div class="arch-item">Apple Intelligence <small>on-device NLP（默认）</small></div>
+        <div class="arch-item">Vision Framework <small>截图 OCR</small></div>
+        <div class="arch-item">Shortcuts + Live Activity <small>零点击入账</small></div>
+        <div class="arch-item">WidgetKit + WatchKit <small>桌面/手表</small></div>
+        <div class="arch-item">Keychain <small>API Key 保险柜</small></div>
+        <div class="arch-item">Mac Catalyst（V2.0） <small>Mac 原生</small></div>
+      </div>
+      <div class="arch-col">
+        <h4>☁️ 数据同步（Apple 托管）<small>NSPersistentCloudKitContainer</small></h4>
+        <div class="arch-item">CloudKit Private DB <small>个人账本 · 私房钱</small></div>
+        <div class="arch-item">CKShare <small>家庭共享账本</small></div>
+        <div class="arch-item">iCloud Drive <small>Mac 端 MCP 读写</small></div>
+        <div class="arch-item">端到端加密 <small>Apple 原生 · 无我方访问</small></div>
+        <div class="arch-item">汇率（只读第三方） <small>exchangerate-api · 1h 缓存</small></div>
+        <div style="padding: 10px 12px; background: rgba(74,138,94,0.15); color: var(--success); border-radius:10px; margin-top: 6px; font-size: 11px; font-weight: 600; text-align:center;">
+          ✗ 无我方服务器 · 无用户账号 · 无云数据库
+        </div>
+      </div>
+      <div class="arch-col">
+        <h4>🤖 AI 层（用户自选）<small>on-device 或 BYO LLM</small></h4>
+        <div class="arch-item">Apple Intelligence <small>默认 · 离线</small></div>
+        <div class="arch-item">OpenAI API <small>BYO Key</small></div>
+        <div class="arch-item">Anthropic Claude API <small>BYO Key</small></div>
+        <div class="arch-item">Google Gemini API <small>BYO Key</small></div>
+        <div class="arch-item">Ollama / LM Studio <small>局域网 · 自部署</small></div>
+        <div class="arch-item">自定义 OpenAI 兼容端点 <small>baseURL 可填</small></div>
+        <div class="arch-item">MCP Server（Mac 本地） <small>localhost:7321</small></div>
+      </div>
+    </div>
+    <!-- Flow diagram below -->
+    <div class="card" style="padding: 32px; margin-top: 20px;">
+      <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 18px; color: var(--ink);">数据流向（无中心服务器）</h4>
+      <div style="background: rgba(255,255,255,0.5); border-radius: 18px; padding: 24px; font-family: 'SF Mono', Consolas, monospace; font-size: 12px; line-height: 1.9; color: var(--ink);">
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-items:center; text-align:center; font-size:11.5px;">
+          <div style="padding: 12px 8px; background: linear-gradient(135deg, #FFE0EC, #fff); border-radius:12px; font-weight:600;">📱 iPhone<br><small style="color:var(--muted); font-weight:400;">记账 · 查看</small></div>
+          <div style="color: var(--muted); font-size: 18px;">⇄</div>
+          <div style="padding: 12px 8px; background: linear-gradient(135deg, #E5EEFF, #fff); border-radius:12px; font-weight:600;">☁️ iCloud<br><small style="color:var(--muted); font-weight:400;">E2E 加密同步</small></div>
+          <div></div>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-items:center; text-align:center; margin-top: 8px; font-size:11.5px;">
+          <div></div>
+          <div></div>
+          <div style="color: var(--muted); font-size: 18px;">↓</div>
+          <div></div>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-items:center; text-align:center; font-size:11.5px;">
+          <div style="padding: 12px 8px; background: linear-gradient(135deg, #F4E6FF, #fff); border-radius:12px; font-weight:600;">💻 Mac<br><small style="color:var(--muted); font-weight:400;">App + MCP Server</small></div>
+          <div style="color: var(--muted); font-size: 18px;">⇄</div>
+          <div style="padding: 12px 8px; background: linear-gradient(135deg, #FFF4DE, #fff); border-radius:12px; font-weight:600;">⌚ Watch / iPad<br><small style="color:var(--muted); font-weight:400;">实时同步</small></div>
+          <div></div>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-items:center; text-align:center; margin-top: 12px; font-size:11.5px;">
+          <div style="color: var(--muted); font-size: 18px;">↓</div>
+          <div></div>
+          <div></div>
+          <div></div>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-items:center; text-align:center; font-size:11.5px;">
+          <div style="padding: 12px 8px; background: linear-gradient(135deg, #D7C4FF, #fff); border-radius:12px; font-weight:600;">🤖 Claude Desktop<br><small style="color:var(--muted); font-weight:400;">对话记账</small></div>
+          <div style="color: var(--muted); font-size: 18px;">⇄</div>
+          <div style="padding: 12px 8px; background: linear-gradient(135deg, #F4DFA8, #fff); border-radius:12px; font-weight:600;">🔌 本地 MCP<br><small style="color:var(--muted); font-weight:400;">localhost:7321</small></div>
+          <div></div>
+        </div>
+      </div>
+      <div style="margin-top: 20px; padding: 16px; background: rgba(255, 181, 200, 0.15); border-left: 3px solid var(--pink); border-radius: 10px; font-size: 12.5px; line-height: 1.65; color: var(--ink-soft);">
+        <b style="color: var(--ink);">唯一会联网的四件事：</b>①&nbsp;iCloud 同步（Apple 托管）；②&nbsp;汇率只读 API（exchangerate-api）；③&nbsp;用户主动调用的 LLM API（OpenAI / Claude / Gemini / 用户自己的 Ollama）；④&nbsp;用户主动配置的 Webhook（Slack / 飞书 / n8n）。
+        <br><br>
+        <b style="color: var(--ink);">Glassbook 永远不运营服务器。</b>没有用户数据库、没有登录账号、没有后端服务。
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Section 5 · MVP Pitch ===== -->
+  <div class="section">
+    <div class="section-hd">
+      <span class="section-num">05</span>
+      <span class="section-title">MVP 一句话推荐</span>
+    </div>
+    <div class="pitch card">
+      <div class="pitch-kicker">✦ SINGLE-LINE POSITIONING ✦</div>
+      <h2>Glassbook · 第一款为开发者做的本地优先高级记账 App</h2>
+      <p>V1.0 三个月内上线 iOS 版本。四大基石：<b>玻璃拟态视觉</b> · <b>订阅管理</b>（VPS/AI/域名多币种）· <b>截屏零点击入账</b> · <b>iCloud 同步 + 本地加密</b>。没有我方服务器、没有账号体系、没有云数据泄露风险 —— Pro 版本可以接入你自己的大模型（OpenAI / Claude / Gemini / Ollama）让账本真正成为会对话的工具。</p>
+      <div class="pitch-kpi">
+        <div>
+          <div class="kpi-val">¥ 28 / 月</div>
+          <div class="kpi-lbl">PRO · V1.5 开启订阅</div>
+        </div>
+        <div>
+          <div class="kpi-val">3 月</div>
+          <div class="kpi-lbl">MVP → APP STORE</div>
+        </div>
+        <div>
+          <div class="kpi-val">1,000</div>
+          <div class="kpi-lbl">首批种子用户目标</div>
+        </div>
+        <div>
+          <div class="kpi-val">20%</div>
+          <div class="kpi-lbl">PRO 转化率基准</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Glassbook Advanced Features · Synthesis v2 · Local-First · 2026.04.19 · for Roger Dupuis
+  </footer>
+</div>
+</body>
+</html>

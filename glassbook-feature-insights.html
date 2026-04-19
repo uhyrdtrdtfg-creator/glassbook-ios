@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glassbook · 功能扩展洞察图谱</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  :root {
+    --ink: #1a1a2e;
+    --ink-2: rgba(26,26,46,0.7);
+    --ink-3: rgba(26,26,46,0.45);
+    --ink-4: rgba(26,26,46,0.25);
+    --glass-bg: rgba(255,255,255,0.5);
+    --glass-border: rgba(255,255,255,0.7);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+    background:
+      radial-gradient(circle at 10% 0%, rgba(255,180,200,0.4) 0%, transparent 40%),
+      radial-gradient(circle at 90% 20%, rgba(180,200,255,0.4) 0%, transparent 40%),
+      radial-gradient(circle at 50% 80%, rgba(220,190,255,0.3) 0%, transparent 50%),
+      #eae4dc;
+    background-attachment: fixed;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  .page { max-width: 1280px; margin: 0 auto; padding: 72px 48px 120px; }
+
+  .eyebrow {
+    font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--ink-3); margin-bottom: 20px;
+  }
+  h1.title {
+    font-size: 60px; font-weight: 200; letter-spacing: -0.025em; line-height: 1.05;
+    margin-bottom: 20px;
+  }
+  h1.title em {
+    font-style: normal; font-weight: 500;
+    background: linear-gradient(90deg, #ff6b9d, #c48aff 50%, #7ea8ff);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  h2.sec {
+    font-size: 36px; font-weight: 300; letter-spacing: -0.015em;
+    margin-bottom: 12px;
+  }
+  h2.sec em { font-style: normal; font-weight: 500; }
+  .lede { font-size: 18px; color: var(--ink-2); font-weight: 300; max-width: 720px; }
+  .sub-lede { font-size: 15px; color: var(--ink-2); font-weight: 300; max-width: 680px; margin-top: 6px; }
+  .divider { height: 1px; background: rgba(26,26,46,0.08); margin: 72px 0; }
+
+  /* ——— 现状 vs 待开发 对照 ——— */
+  .map {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    margin-top: 40px;
+  }
+  .map-col {
+    padding: 28px;
+    background: rgba(255,255,255,0.5);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.7);
+    border-radius: 22px;
+    box-shadow: 0 8px 32px rgba(80,60,120,0.08);
+  }
+  .map-col h3 {
+    font-size: 11px; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 500; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .map-col h3 .chip {
+    font-size: 9px; padding: 3px 8px; border-radius: 99px;
+    letter-spacing: 0.05em; text-transform: none;
+  }
+  .chip-done { background: rgba(122,207,165,0.25); color: #3a7a50; border: 1px solid rgba(122,207,165,0.4); }
+  .chip-todo { background: rgba(255,154,123,0.25); color: #a5533a; border: 1px solid rgba(255,154,123,0.4); }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag-list .tg {
+    padding: 7px 12px; border-radius: 10px;
+    background: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.7);
+    font-size: 12px; color: var(--ink);
+  }
+  .tag-list .tg.done { opacity: 0.65; }
+
+  /* ——— 功能卡片网格 ——— */
+  .feat-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px;
+    margin-top: 40px;
+  }
+  .feat {
+    padding: 26px 22px;
+    background: rgba(255,255,255,0.52);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.7);
+    border-radius: 22px;
+    box-shadow: 0 8px 32px rgba(80,60,120,0.08);
+    position: relative; overflow: hidden;
+  }
+  .feat::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, var(--c1), var(--c2));
+  }
+  .feat .ico-row {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 20px;
+  }
+  .feat .big-ico {
+    width: 46px; height: 46px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: #fff; font-weight: 500;
+    background: linear-gradient(135deg, var(--c1), var(--c2));
+    box-shadow: 0 6px 16px rgba(80,60,120,0.15);
+  }
+  .feat .priority {
+    font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 99px;
+    background: rgba(26,26,46,0.08); color: var(--ink-2);
+  }
+  .feat .priority.hi { background: linear-gradient(90deg, #ff6b9d, #c48aff); color: #fff; }
+  .feat h4 { font-size: 18px; font-weight: 500; margin-bottom: 6px; letter-spacing: -0.005em; }
+  .feat .cat { font-size: 11px; color: var(--ink-3); letter-spacing: 0.05em; margin-bottom: 14px; }
+  .feat ul { list-style: none; }
+  .feat ul li {
+    font-size: 12.5px; color: var(--ink-2); line-height: 1.55;
+    padding: 5px 0 5px 14px; position: relative;
+  }
+  .feat ul li::before {
+    content: ""; position: absolute; left: 0; top: 11px;
+    width: 4px; height: 4px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--c1), var(--c2));
+  }
+  .feat ul li b { color: var(--ink); font-weight: 500; }
+  .feat .why {
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px dashed rgba(26,26,46,0.1);
+    font-size: 11px; color: var(--ink-3); line-height: 1.55;
+    font-style: italic;
+  }
+  .feat .why b { font-style: normal; color: var(--ink-2); }
+
+  /* 8 种不同的渐变 */
+  .feat.f-1 { --c1: #ff6b9d; --c2: #c48aff; }
+  .feat.f-2 { --c1: #1677ff; --c2: #7a9cff; }
+  .feat.f-3 { --c1: #7acfa5; --c2: #a8e4d2; }
+  .feat.f-4 { --c1: #ffa87a; --c2: #ffd46b; }
+  .feat.f-5 { --c1: #a87aff; --c2: #d4a5ff; }
+  .feat.f-6 { --c1: #07c160; --c2: #4ed88c; }
+  .feat.f-7 { --c1: #ff7a9c; --c2: #ffb199; }
+  .feat.f-8 { --c1: #555; --c2: #1a1a2e; }
+
+  /* ——— Hero 功能预览 ——— */
+  .hero-feat-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px;
+    margin-top: 40px;
+  }
+  .hero-cell {
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .hero-cell .h-title {
+    margin-top: 22px; text-align: center; width: 100%; max-width: 300px;
+  }
+  .hero-cell .h-title .h-num {
+    font-size: 10px; letter-spacing: 0.25em; color: var(--ink-3);
+    margin-bottom: 6px; font-variant-numeric: tabular-nums;
+  }
+  .hero-cell .h-title .h-t { font-size: 17px; font-weight: 500; margin-bottom: 6px; }
+  .hero-cell .h-title .h-n { font-size: 12px; color: var(--ink-2); line-height: 1.55; }
+
+  /* 手机 */
+  .phone {
+    width: 300px; height: 620px; border-radius: 44px;
+    background: #0a0a12; padding: 8px;
+    box-shadow:
+      0 50px 100px -30px rgba(60,40,100,0.35),
+      0 20px 40px -20px rgba(60,40,100,0.2);
+    position: relative;
+  }
+  .phone::before {
+    content: ""; position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+    width: 92px; height: 24px; background: #000; border-radius: 20px; z-index: 50;
+  }
+  .screen {
+    width: 100%; height: 100%; border-radius: 36px; overflow: hidden; position: relative;
+  }
+  .statusbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 46px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 26px 0; font-size: 12px; font-weight: 600;
+    font-variant-numeric: tabular-nums; z-index: 30; color: var(--ink);
+  }
+  .bg-wrap {
+    background:
+      radial-gradient(circle at 20% 10%, #ff9a7b 0%, transparent 40%),
+      radial-gradient(circle at 80% 20%, #7ea8ff 0%, transparent 42%),
+      radial-gradient(circle at 50% 85%, #c48aff 0%, transparent 45%),
+      linear-gradient(180deg, #fde4d0 0%, #e4e8ff 100%);
+  }
+  .bg-goals {
+    background:
+      radial-gradient(circle at 50% 25%, #ffb8d4 0%, transparent 45%),
+      radial-gradient(circle at 20% 80%, #b8d8ff 0%, transparent 42%),
+      radial-gradient(circle at 85% 90%, #ffd08a 0%, transparent 40%),
+      linear-gradient(180deg, #fff0f6 0%, #e8efff 100%);
+  }
+  .bg-sub {
+    background:
+      radial-gradient(circle at 30% 20%, #a8e4d2 0%, transparent 42%),
+      radial-gradient(circle at 80% 70%, #c8b5ff 0%, transparent 45%),
+      linear-gradient(180deg, #e4fff0 0%, #f0e8ff 100%);
+  }
+  .glass {
+    background: rgba(255,255,255,0.4);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.6);
+    box-shadow: 0 8px 32px rgba(80,60,120,0.1);
+    border-radius: 20px;
+  }
+  .content { padding: 60px 16px 20px; height: 100%; position: relative; }
+  .nav { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px 14px; }
+  .nav .t { font-size: 16px; font-weight: 500; }
+  .nav .ico-btn {
+    width: 30px; height: 30px; border-radius: 10px;
+    background: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.7);
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+  }
+
+  /* —— Hero 1：年度报告 —— */
+  .s-wrap .year-cover {
+    padding: 24px 20px; margin-bottom: 14px;
+    background: linear-gradient(135deg, rgba(26,26,46,0.85), rgba(80,40,120,0.8));
+    color: #fff; border-radius: 22px;
+    border: 1px solid rgba(255,255,255,0.2);
+    backdrop-filter: blur(20px);
+    position: relative; overflow: hidden;
+  }
+  .s-wrap .year-cover::before {
+    content: ""; position: absolute; top: -30px; right: -30px;
+    width: 120px; height: 120px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,154,123,0.6), transparent 60%);
+  }
+  .s-wrap .yc-lb {
+    font-size: 10px; letter-spacing: 0.3em; color: rgba(255,255,255,0.6); margin-bottom: 8px;
+  }
+  .s-wrap .yc-year { font-size: 48px; font-weight: 200; letter-spacing: -0.03em; line-height: 1; }
+  .s-wrap .yc-sub { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 6px; letter-spacing: 0.05em; }
+
+  .s-wrap .stat-card {
+    padding: 18px; margin-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .s-wrap .stat-card .left .k { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px; }
+  .s-wrap .stat-card .left .v { font-size: 22px; font-weight: 300; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .s-wrap .stat-card .left .s { font-size: 10px; color: var(--ink-3); margin-top: 3px; }
+  .s-wrap .stat-card .emoji { font-size: 34px; }
+
+  .s-wrap .persona-card {
+    padding: 18px; text-align: center; margin-bottom: 10px;
+  }
+  .s-wrap .persona-card .pl { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px; }
+  .s-wrap .persona-card .pt {
+    font-size: 22px; font-weight: 500; letter-spacing: -0.01em;
+    background: linear-gradient(90deg, #ff6b9d, #c48aff);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .s-wrap .persona-card .pd { font-size: 11px; color: var(--ink-2); margin-top: 4px; line-height: 1.5; }
+
+  .s-wrap .share-btn {
+    position: absolute; bottom: 18px; left: 16px; right: 16px;
+    padding: 13px; background: #1a1a2e; color: #fff;
+    border-radius: 14px; font-size: 13px; font-weight: 500; text-align: center;
+    box-shadow: 0 10px 24px rgba(26,26,46,0.3);
+  }
+
+  /* —— Hero 2：储蓄目标 —— */
+  .s-goals .goal-hero {
+    padding: 20px; margin-bottom: 12px; text-align: center;
+  }
+  .s-goals .goal-hero .gh-lb { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px; }
+  .s-goals .goal-hero .gh-n { font-size: 16px; font-weight: 500; margin-bottom: 14px; }
+  .s-goals .ring {
+    width: 140px; height: 140px; margin: 0 auto 16px; position: relative;
+  }
+  .s-goals .ring svg { width: 100%; height: 100%; }
+  .s-goals .ring .center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .s-goals .ring .c-big { font-size: 24px; font-weight: 300; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .s-goals .ring .c-sml { font-size: 10px; color: var(--ink-3); margin-top: 2px; }
+  .s-goals .progress-line {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 0 4px; font-variant-numeric: tabular-nums;
+  }
+  .s-goals .progress-line .p-cur { font-size: 20px; font-weight: 500; }
+  .s-goals .progress-line .p-tgt { font-size: 12px; color: var(--ink-3); }
+
+  .s-goals .goal-card {
+    padding: 14px 16px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .s-goals .gc-ico {
+    width: 36px; height: 36px; border-radius: 11px; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--gc-1), var(--gc-2));
+    color: #fff; flex-shrink: 0;
+  }
+  .s-goals .gc-info { flex: 1; min-width: 0; }
+  .s-goals .gc-info .n { font-size: 12px; font-weight: 500; margin-bottom: 3px; }
+  .s-goals .gc-info .track { height: 4px; background: rgba(255,255,255,0.5); border-radius: 99px; overflow: hidden; }
+  .s-goals .gc-info .track .fill {
+    height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--gc-1), var(--gc-2));
+  }
+  .s-goals .gc-pct { font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+  .s-goals .goal-1 { --gc-1: #ff6b9d; --gc-2: #c48aff; }
+  .s-goals .goal-2 { --gc-1: #7a9cff; --gc-2: #9cc0ff; }
+  .s-goals .goal-3 { --gc-1: #7acfa5; --gc-2: #a8e4d2; }
+  .s-goals .goal-4 { --gc-1: #ffa87a; --gc-2: #ffd46b; }
+
+  .s-goals .add-btn {
+    position: absolute; bottom: 18px; left: 16px; right: 16px;
+    padding: 13px; background: #1a1a2e; color: #fff;
+    border-radius: 14px; font-size: 13px; font-weight: 500; text-align: center;
+  }
+
+  /* —— Hero 3：订阅管理 —— */
+  .s-sub .sum-card { padding: 18px 20px; margin-bottom: 12px; }
+  .s-sub .sum-card .sl { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px; }
+  .s-sub .sum-card .sv { font-size: 28px; font-weight: 300; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .s-sub .sum-card .sv .u { font-size: 14px; color: var(--ink-3); vertical-align: top; margin-right: 3px; }
+  .s-sub .sum-card .sv .sfx { font-size: 12px; color: var(--ink-3); font-weight: 400; margin-left: 4px; }
+  .s-sub .sum-card .ss { font-size: 11px; color: var(--ink-2); margin-top: 6px; }
+  .s-sub .sum-card .ss b { color: #d04a7a; font-weight: 500; }
+
+  .s-sub .sub-list { padding: 4px 10px; margin-bottom: 10px; }
+  .sub-row { display: flex; align-items: center; gap: 11px; padding: 11px 6px; }
+  .sub-row + .sub-row { border-top: 1px solid rgba(255,255,255,0.45); }
+  .sub-row .slogo {
+    width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 14px;
+  }
+  .slogo-nf { background: #e50914; }
+  .slogo-sp { background: #1db954; }
+  .slogo-ic { background: linear-gradient(135deg, #4a9eff, #c48aff); }
+  .slogo-yt { background: #ff0000; }
+  .slogo-ap { background: #000; }
+  .sub-row .si { flex: 1; min-width: 0; }
+  .sub-row .si .n { font-size: 12.5px; font-weight: 500; margin-bottom: 2px; }
+  .sub-row .si .d { font-size: 10px; color: var(--ink-3); letter-spacing: 0.02em; }
+  .sub-row .sa { font-size: 12.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .sub-row .sa .cyc { font-size: 9px; color: var(--ink-3); display: block; text-align: right; margin-top: 1px; }
+
+  .sub-row .alert {
+    display: inline-block; padding: 1px 6px; background: rgba(208,74,122,0.2);
+    color: #d04a7a; font-size: 9px; border-radius: 99px;
+    border: 1px solid rgba(208,74,122,0.3); margin-top: 2px;
+  }
+
+  /* ——— 优先级矩阵 ——— */
+  .matrix {
+    margin-top: 40px;
+    padding: 32px;
+    background: rgba(255,255,255,0.5);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.7);
+    border-radius: 22px;
+    box-shadow: 0 8px 32px rgba(80,60,120,0.08);
+  }
+  .matrix-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+  .mx-quad {
+    padding: 20px;
+    background: rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 16px;
+  }
+  .mx-quad h4 { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+  .mx-quad .mq-sub { font-size: 11px; color: var(--ink-3); margin-bottom: 12px; }
+  .mx-quad ul { list-style: none; }
+  .mx-quad ul li {
+    font-size: 12px; color: var(--ink-2);
+    padding: 5px 0 5px 14px; position: relative;
+  }
+  .mx-quad ul li::before {
+    content: "·"; position: absolute; left: 4px; color: var(--ink-3); font-weight: 700;
+  }
+  .mx-quad.hi { border-color: rgba(255,107,157,0.3); background: rgba(255,236,244,0.6); }
+  .mx-quad.hi h4 { color: #b53a6a; }
+
+  footer { margin-top: 96px; padding-top: 36px; border-top: 1px solid rgba(26,26,46,0.08); font-size: 12px; color: var(--ink-3); letter-spacing: 0.05em; text-align: center; line-height: 1.8; }
+  footer em { font-style: normal; color: var(--ink); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="eyebrow">Feature Insight · 功能扩展洞察</div>
+  <h1 class="title">除了基础记账，<br>Glassbook 还能<em>做得更多</em></h1>
+  <p class="lede">记账不只是"记下花了多少钱"。真正让用户爱上一款 app 的，是它帮你看清财务全貌、省下冤枉钱、给你小小的成就感。下面是我梳理的 8 大功能方向、3 个"杀手级"功能预览，以及该做什么、该缓做什么的判断。</p>
+
+  <!-- 当前 vs 未来 -->
+  <div class="map">
+    <div class="map-col">
+      <h3>当前已有<span class="chip chip-done">7 项</span></h3>
+      <div class="tag-list">
+        <span class="tg done">首页总览</span>
+        <span class="tg done">快速记账</span>
+        <span class="tg done">账单明细</span>
+        <span class="tg done">数据统计</span>
+        <span class="tg done">预算管理</span>
+        <span class="tg done">个人中心</span>
+        <span class="tg done">智能识别导入</span>
+      </div>
+    </div>
+    <div class="map-col">
+      <h3>建议扩展<span class="chip chip-todo">20+ 项</span></h3>
+      <div class="tag-list">
+        <span class="tg">多账户</span>
+        <span class="tg">资产总览</span>
+        <span class="tg">AI 消费洞察</span>
+        <span class="tg">年度报告</span>
+        <span class="tg">储蓄目标</span>
+        <span class="tg">订阅管理</span>
+        <span class="tg">定期账单</span>
+        <span class="tg">AA 分账</span>
+        <span class="tg">家庭账本</span>
+        <span class="tg">Apple Watch</span>
+        <span class="tg">桌面小组件</span>
+        <span class="tg">语音记账</span>
+        <span class="tg">发票识别</span>
+        <span class="tg">地图热力图</span>
+        <span class="tg">多币种</span>
+        <span class="tg">Face ID 锁</span>
+        <span class="tg">iCloud 同步</span>
+        <span class="tg">挑战模式</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 8 大功能方向 -->
+  <div class="eyebrow">Feature Categories · 8 大方向</div>
+  <h2 class="sec">每一类都能让<em>用户尖叫</em>一下</h2>
+  <p class="sub-lede">按"用户感知强度"和"实现优先级"排序，前几类是差异化的关键。</p>
+
+  <div class="feat-grid">
+
+    <div class="feat f-1">
+      <div class="ico-row"><div class="big-ico">◉</div><div class="priority hi">最高优先</div></div>
+      <h4>智能洞察</h4>
+      <div class="cat">AI Insights · 差异化核心</div>
+      <ul>
+        <li><b>消费人格分析</b>："咖啡爱好者""周末剁手党"</li>
+        <li><b>异常消费提醒</b>：本周外卖比平均多 40%</li>
+        <li><b>省钱建议</b>：3 个订阅长期未用，可取消</li>
+        <li><b>同比 / 环比</b>：比上月少花 ¥820</li>
+      </ul>
+      <div class="why"><b>为什么值得做：</b>这是普通记账 app 和"聪明记账 app"的分水岭。用户会觉得"这 app 比我还了解我"。</div>
+    </div>
+
+    <div class="feat f-2">
+      <div class="ico-row"><div class="big-ico">◈</div><div class="priority hi">最高优先</div></div>
+      <h4>资产全貌</h4>
+      <div class="cat">Multi-Account · 基础刚需</div>
+      <ul>
+        <li><b>多账户管理</b>：现金、储蓄卡、信用卡、基金、加密货币</li>
+        <li><b>净资产仪表盘</b>：总资产 – 总负债 = 今天的你</li>
+        <li><b>信用卡账单追踪</b>：还款日、最低还款、已还金额</li>
+        <li><b>借贷管理</b>：谁欠你钱、你欠谁钱</li>
+      </ul>
+      <div class="why"><b>为什么值得做：</b>记账到一定程度，用户想看的是"整体"，不是单笔。这是从"记账工具"升级成"财务管家"。</div>
+    </div>
+
+    <div class="feat f-3">
+      <div class="ico-row"><div class="big-ico">◎</div><div class="priority hi">最高优先</div></div>
+      <h4>目标与储蓄</h4>
+      <div class="cat">Savings Goals · 情感钩子</div>
+      <ul>
+        <li><b>储蓄目标</b>：存够 5 万买相机、年假旅行基金</li>
+        <li><b>每日可花额度</b>：今天还能花 ¥120</li>
+        <li><b>挑战模式</b>：30 天无外卖、100 天记账打卡</li>
+        <li><b>进度仪式感</b>：达成动画、成就徽章</li>
+      </ul>
+      <div class="why"><b>为什么值得做：</b>把"抠抠搜搜省钱"变成"为梦想攒钱"——动机完全不同，留存率也不同。</div>
+    </div>
+
+    <div class="feat f-4">
+      <div class="ico-row"><div class="big-ico">↻</div><div class="priority hi">最高优先</div></div>
+      <h4>订阅与定期</h4>
+      <div class="cat">Subscriptions · 真实痛点</div>
+      <ul>
+        <li><b>订阅管理</b>：Netflix、Spotify、iCloud、视频会员全景</li>
+        <li><b>续费提醒</b>：到期前 3 天、1 天推送</li>
+        <li><b>"僵尸订阅"识别</b>：6 个月未用的自动标记</li>
+        <li><b>定期账单</b>：房租、水电、宽带到期提醒</li>
+      </ul>
+      <div class="why"><b>为什么值得做：</b>"我每月在不知情的地方漏掉多少钱？"几乎每个现代人都中招。</div>
+    </div>
+
+    <div class="feat f-5">
+      <div class="ico-row"><div class="big-ico">◇</div><div class="priority">中等优先</div></div>
+      <h4>便捷输入</h4>
+      <div class="cat">Quick Entry · 提升黏性</div>
+      <ul>
+        <li><b>iOS 桌面小组件</b>：锁屏一键记一笔</li>
+        <li><b>Apple Watch</b>：抬腕就能记</li>
+        <li><b>语音记账</b>："我刚买了杯 28 块的咖啡"</li>
+        <li><b>收据 OCR</b>：拍一张小票，自动录入</li>
+      </ul>
+      <div class="why"><b>为什么值得做：</b>记账最大的敌人是"懒"。入口越多、越快，用户越坚持得下来。</div>
+    </div>
+
+    <div class="feat f-6">
+      <div class="ico-row"><div class="big-ico">◐</div><div class="priority">中等优先</div></div>
+      <h4>共享账本</h4>
+      <div class="cat">Shared Books · 社交扩展</div>
+      <ul>
+        <li><b>AA 分账</b>：朋友聚餐输入总额自动分</li>
+        <li><b>情侣 / 家庭账本</b>：共同账户 + 个人账户并存</li>
+        <li><b>旅行账本</b>：一段旅程一本账</li>
+        <li><b>结算提醒</b>：谁该给谁转多少钱</li>
+      </ul>
+      <div class="why"><b>为什么值得做：</b>和"社交"挂钩的功能能带来自发传播——用户会拉朋友一起用。</div>
+    </div>
+
+    <div class="feat f-7">
+      <div class="ico-row"><div class="big-ico">◭</div><div class="priority">低优先</div></div>
+      <h4>生活场景</h4>
+      <div class="cat">Lifestyle · 锦上添花</div>
+      <ul>
+        <li><b>地图消费热力图</b>：哪个商圈花的钱最多</li>
+        <li><b>时段消费热力</b>：你总在深夜冲动消费</li>
+        <li><b>多币种 / 汇率</b>：出差旅行自动换算</li>
+        <li><b>商户评分 & 记忆</b>：记录"那家店值得再去"</li>
+      </ul>
+      <div class="why"><b>为什么值得做：</b>让记账变"有趣"而不仅是"有用"——留住用户几个月后的新鲜感。</div>
+    </div>
+
+    <div class="feat f-8">
+      <div class="ico-row"><div class="big-ico">⌘</div><div class="priority">基础配套</div></div>
+      <h4>隐私与专业</h4>
+      <div class="cat">Privacy & Pro · 信任基础</div>
+      <ul>
+        <li><b>Face ID / 密码锁</b>：打开 app 必须验证</li>
+        <li><b>访客模式</b>：数字模糊化，借朋友看不露底</li>
+        <li><b>iCloud 端到端加密</b>：Apple 也看不到</li>
+        <li><b>报销 / 抵税标记</b>：导出 PDF 给公司或税务</li>
+      </ul>
+      <div class="why"><b>为什么值得做：</b>财务数据最敏感。隐私做不到位，用户下一秒就删 app。</div>
+    </div>
+
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Hero 功能预览 -->
+  <div class="eyebrow">Hero Features · 三个最值得先做的</div>
+  <h2 class="sec">我帮你先画出来的<em>三个"杀手级"功能</em></h2>
+  <p class="sub-lede">从上面 8 类中选出了感知强、画面感强、又容易形成差异化的 3 个，先做成迷你原型给你看效果。</p>
+
+  <div class="hero-feat-grid">
+
+    <!-- Hero 1：年度报告 -->
+    <div class="hero-cell">
+      <div class="phone">
+        <div class="screen bg-wrap">
+          <div class="statusbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div class="content s-wrap">
+            <div class="nav">
+              <div class="ico-btn">←</div>
+              <div class="t">年度回顾</div>
+              <div class="ico-btn">⇪</div>
+            </div>
+
+            <div class="year-cover">
+              <div class="yc-lb">YOUR YEAR IN MONEY</div>
+              <div class="yc-year">2025</div>
+              <div class="yc-sub">你和 Glassbook 的第 328 天</div>
+            </div>
+
+            <div class="glass stat-card">
+              <div class="left">
+                <div class="k">总支出</div>
+                <div class="v">¥58,420</div>
+                <div class="s">比 2024 年少 12%</div>
+              </div>
+              <div class="emoji">💰</div>
+            </div>
+
+            <div class="glass stat-card">
+              <div class="left">
+                <div class="k">最"烧钱"的一天</div>
+                <div class="v">¥2,380</div>
+                <div class="s">11 月 11 日 · 你懂的</div>
+              </div>
+              <div class="emoji">🛍</div>
+            </div>
+
+            <div class="glass persona-card">
+              <div class="pl">你的消费人格</div>
+              <div class="pt">美食探索家</div>
+              <div class="pd">餐饮占比 32%，尝试了 47 家新店</div>
+            </div>
+
+            <div class="share-btn">生成海报 · 分享朋友圈</div>
+          </div>
+        </div>
+      </div>
+      <div class="h-title">
+        <div class="h-num">HERO · 01</div>
+        <div class="h-t">年度消费回顾</div>
+        <div class="h-n">像"Spotify Wrapped"一样，每年 12 月底自动生成可分享的年度账本海报。病毒传播潜力最大。</div>
+      </div>
+    </div>
+
+    <!-- Hero 2：储蓄目标 -->
+    <div class="hero-cell">
+      <div class="phone">
+        <div class="screen bg-goals">
+          <div class="statusbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div class="content s-goals">
+            <div class="nav">
+              <div class="ico-btn">←</div>
+              <div class="t">储蓄目标</div>
+              <div class="ico-btn">+</div>
+            </div>
+
+            <div class="glass goal-hero">
+              <div class="gh-lb">主要目标</div>
+              <div class="gh-n">🏝 冰岛极光之旅</div>
+              <div class="ring">
+                <svg viewBox="0 0 42 42">
+                  <circle cx="21" cy="21" r="18" fill="transparent" stroke="rgba(255,255,255,0.55)" stroke-width="3.5"/>
+                  <circle cx="21" cy="21" r="18" fill="transparent" stroke="url(#g-goal)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="76 113" transform="rotate(-90 21 21)"/>
+                  <defs>
+                    <linearGradient id="g-goal" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stop-color="#ff6b9d"/>
+                      <stop offset="100%" stop-color="#c48aff"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div class="center">
+                  <div class="c-big">67%</div>
+                  <div class="c-sml">还差 4 个月</div>
+                </div>
+              </div>
+              <div class="progress-line">
+                <div class="p-cur">¥20,100</div>
+                <div class="p-tgt">/ ¥30,000</div>
+              </div>
+            </div>
+
+            <div class="glass goal-card goal-2">
+              <div class="gc-ico">📷</div>
+              <div class="gc-info">
+                <div class="n">索尼 A7M4 相机</div>
+                <div class="track"><div class="fill" style="width:42%"></div></div>
+              </div>
+              <div class="gc-pct">42%</div>
+            </div>
+            <div class="glass goal-card goal-3">
+              <div class="gc-ico">🚗</div>
+              <div class="gc-info">
+                <div class="n">紧急备用金</div>
+                <div class="track"><div class="fill" style="width:85%"></div></div>
+              </div>
+              <div class="gc-pct">85%</div>
+            </div>
+            <div class="glass goal-card goal-4">
+              <div class="gc-ico">🎓</div>
+              <div class="gc-info">
+                <div class="n">自我投资学习</div>
+                <div class="track"><div class="fill" style="width:28%"></div></div>
+              </div>
+              <div class="gc-pct">28%</div>
+            </div>
+
+            <div class="add-btn">+ 新建目标</div>
+          </div>
+        </div>
+      </div>
+      <div class="h-title">
+        <div class="h-num">HERO · 02</div>
+        <div class="h-t">储蓄目标</div>
+        <div class="h-n">把"省钱"包装成"为梦想攒钱"，每次消费都会问"这值得吗"。情感驱动 + 进度可视化 = 留存神器。</div>
+      </div>
+    </div>
+
+    <!-- Hero 3：订阅管理 -->
+    <div class="hero-cell">
+      <div class="phone">
+        <div class="screen bg-sub">
+          <div class="statusbar"><span>9:41</span><span>●●● 100%</span></div>
+          <div class="content s-sub">
+            <div class="nav">
+              <div class="ico-btn">←</div>
+              <div class="t">我的订阅</div>
+              <div class="ico-btn">+</div>
+            </div>
+
+            <div class="glass sum-card">
+              <div class="sl">每月订阅支出</div>
+              <div class="sv"><span class="u">¥</span>386<span class="sfx">/月</span></div>
+              <div class="ss">共 <b>8</b> 个订阅 · <b>3 个</b> 你 30 天没用过</div>
+            </div>
+
+            <div class="glass sub-list">
+              <div class="sub-row">
+                <div class="slogo slogo-nf">N</div>
+                <div class="si">
+                  <div class="n">Netflix 高级版</div>
+                  <div class="d">4.26 续费 · 还有 7 天</div>
+                </div>
+                <div class="sa">¥108<span class="cyc">月</span></div>
+              </div>
+              <div class="sub-row">
+                <div class="slogo slogo-sp">S</div>
+                <div class="si">
+                  <div class="n">Spotify Premium</div>
+                  <div class="d">5.02 续费 <span class="alert">闲置 30 天</span></div>
+                </div>
+                <div class="sa">¥68<span class="cyc">月</span></div>
+              </div>
+              <div class="sub-row">
+                <div class="slogo slogo-ic">iC</div>
+                <div class="si">
+                  <div class="n">iCloud+ 200GB</div>
+                  <div class="d">5.08 续费 · 自动扣款</div>
+                </div>
+                <div class="sa">¥21<span class="cyc">月</span></div>
+              </div>
+              <div class="sub-row">
+                <div class="slogo slogo-yt">Y</div>
+                <div class="si">
+                  <div class="n">YouTube Premium</div>
+                  <div class="d">5.14 续费</div>
+                </div>
+                <div class="sa">¥35<span class="cyc">月</span></div>
+              </div>
+              <div class="sub-row">
+                <div class="slogo slogo-ap"></div>
+                <div class="si">
+                  <div class="n">Apple Arcade</div>
+                  <div class="d">5.20 续费 <span class="alert">闲置 90 天</span></div>
+                </div>
+                <div class="sa">¥50<span class="cyc">月</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="h-title">
+        <div class="h-num">HERO · 03</div>
+        <div class="h-t">订阅管理</div>
+        <div class="h-n">解决真实痛点——用户一眼就知道"每月到底有多少隐形支出"。闲置订阅红色警告最容易触发"省钱快感"。</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- 优先级矩阵 -->
+  <div class="eyebrow">Priority Matrix · 优先级建议</div>
+  <h2 class="sec"><em>先做什么？</em>先不做什么？</h2>
+  <p class="sub-lede">以"用户感知强度"+"开发复杂度"作为判断标准，按下面的四象限分批实现即可。</p>
+
+  <div class="matrix">
+    <div class="matrix-grid">
+      <div class="mx-quad hi">
+        <h4>🔥 第一批（上线必做）</h4>
+        <div class="mq-sub">高感知 · 中等复杂度</div>
+        <ul>
+          <li>多账户 / 资产总览</li>
+          <li>订阅管理 + 续费提醒</li>
+          <li>储蓄目标（至少 1 个核心目标）</li>
+          <li>Face ID 锁 + iCloud 同步</li>
+        </ul>
+      </div>
+      <div class="mx-quad">
+        <h4>✨ 第二批（口碑爆发）</h4>
+        <div class="mq-sub">高感知 · 高复杂度</div>
+        <ul>
+          <li>AI 消费洞察（异常提醒、人格分析）</li>
+          <li>年度报告（12 月集中发布）</li>
+          <li>桌面小组件 + Apple Watch</li>
+          <li>收据 OCR 识别</li>
+        </ul>
+      </div>
+      <div class="mx-quad">
+        <h4>🧩 第三批（长尾）</h4>
+        <div class="mq-sub">中感知 · 中复杂度</div>
+        <ul>
+          <li>AA 分账 / 家庭共享</li>
+          <li>挑战模式（30 天无外卖）</li>
+          <li>定期账单（房租、水电）</li>
+          <li>报销 / 抵税标记 + PDF 导出</li>
+        </ul>
+      </div>
+      <div class="mx-quad">
+        <h4>⏸ 暂缓（锦上添花）</h4>
+        <div class="mq-sub">低感知 · 高复杂度</div>
+        <ul>
+          <li>地图消费热力图</li>
+          <li>多币种实时汇率</li>
+          <li>商户评分 / 记忆功能</li>
+          <li>加密货币资产接入</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <em>Glassbook</em> · 功能洞察图谱 · 8 大方向 · 3 Hero · 四象限排期 · 2026.04.19<br>
+    告诉我你最想让我先把<em>哪一个功能</em>画成完整的多屏流程，我接着做下去
+  </footer>
+
+</div>
+</body>
+</html>

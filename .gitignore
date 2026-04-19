@@ -1,0 +1,42 @@
+# Xcode
+Glassbook/Glassbook.xcodeproj/
+Glassbook/Glassbook.xcworkspace/
+Glassbook/*.xcworkspace
+**/xcuserdata/
+**/*.xcuserstate
+**/DerivedData/
+**/build/
+
+# SwiftPM
+glassbook-mcp/.build/
+glassbook-mcp/.swiftpm/
+glassbook-mcp/Packages/
+glassbook-mcp/*.xcodeproj/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Claude Code local settings (machine-local)
+.claude/settings.local.json
+
+# Generated artifacts
+*.xccovarchive
+*.xccovreport
+*.xcresult
+/tmp/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Dependency managers (if anyone adds them later)
+Pods/
+Carthage/
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output

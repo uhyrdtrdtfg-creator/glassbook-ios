@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glassbook · 记账 App 高保真界面稿</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  :root {
+    --ink: #1a1a2e;
+    --ink-2: rgba(26,26,46,0.7);
+    --ink-3: rgba(26,26,46,0.45);
+    --ink-4: rgba(26,26,46,0.25);
+    --glass-bg: rgba(255,255,255,0.38);
+    --glass-border: rgba(255,255,255,0.6);
+    --glass-shadow: 0 8px 32px rgba(80,60,120,0.1);
+    --page-bg: #eae4dc;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+    background: var(--page-bg);
+    color: var(--ink);
+    line-height: 1.5;
+  }
+  .page { max-width: 1360px; margin: 0 auto; padding: 72px 48px 120px; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--ink-3); margin-bottom: 20px;
+  }
+  h1.title {
+    font-size: 64px; font-weight: 200; letter-spacing: -0.025em; line-height: 1.05;
+    margin-bottom: 20px;
+  }
+  h1.title em { font-style: normal; font-weight: 500; background: linear-gradient(90deg, #ff6b9d, #c48aff 40%, #7ea8ff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .lede { font-size: 19px; color: var(--ink-2); font-weight: 300; max-width: 720px; }
+  .meta { display: flex; gap: 32px; margin-top: 28px; font-size: 13px; color: var(--ink-3); }
+  .meta span strong { color: var(--ink); font-weight: 500; margin-left: 6px; }
+  .divider { height: 1px; background: rgba(26,26,46,0.08); margin: 72px 0; }
+
+  /* ——— 手机网格 ——— */
+  .phone-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 56px 32px; margin-top: 16px;
+  }
+  .phone-cell { display: flex; flex-direction: column; align-items: center; }
+  .phone-cell .caption {
+    margin-top: 24px; text-align: center; width: 320px;
+  }
+  .phone-cell .cap-num {
+    font-size: 11px; letter-spacing: 0.25em; color: var(--ink-3);
+    margin-bottom: 6px; font-variant-numeric: tabular-nums;
+  }
+  .phone-cell .cap-title { font-size: 17px; font-weight: 500; color: var(--ink); margin-bottom: 6px; }
+  .phone-cell .cap-note { font-size: 13px; color: var(--ink-2); line-height: 1.55; }
+
+  /* ——— 手机外壳 ——— */
+  .phone {
+    width: 320px; height: 680px; border-radius: 46px;
+    background: #0a0a12; padding: 9px;
+    box-shadow:
+      0 50px 100px -30px rgba(60,40,100,0.35),
+      0 20px 40px -20px rgba(60,40,100,0.2),
+      0 0 0 1px rgba(0,0,0,0.06);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .phone::before {
+    content: ""; position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
+    width: 100px; height: 26px; background: #000; border-radius: 20px; z-index: 50;
+  }
+  .screen {
+    width: 100%; height: 100%; border-radius: 38px; overflow: hidden; position: relative;
+  }
+  .statusbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 48px;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 28px 0; font-size: 13px; font-weight: 600;
+    font-variant-numeric: tabular-nums; z-index: 30; color: var(--ink);
+  }
+  .statusbar .right-icons { display: flex; gap: 6px; align-items: center; font-size: 10px; }
+
+  /* ——— 统一的彩色光斑背景 ——— */
+  .bg-aurora-a {
+    background:
+      radial-gradient(circle at 15% 8%, #ffb199 0%, transparent 38%),
+      radial-gradient(circle at 85% 18%, #9cc0ff 0%, transparent 42%),
+      radial-gradient(circle at 50% 78%, #d4a5ff 0%, transparent 48%),
+      linear-gradient(180deg, #fde4d0 0%, #e8e2ff 100%);
+  }
+  .bg-aurora-b {
+    background:
+      radial-gradient(circle at 80% 10%, #ffb4e0 0%, transparent 40%),
+      radial-gradient(circle at 20% 40%, #a8e4d2 0%, transparent 42%),
+      radial-gradient(circle at 70% 90%, #ffd89c 0%, transparent 45%),
+      linear-gradient(180deg, #ffe8f1 0%, #fff4e0 100%);
+  }
+  .bg-aurora-c {
+    background:
+      radial-gradient(circle at 30% 15%, #b8e6ff 0%, transparent 40%),
+      radial-gradient(circle at 85% 55%, #ffc0d9 0%, transparent 42%),
+      radial-gradient(circle at 15% 88%, #d5c6ff 0%, transparent 45%),
+      linear-gradient(180deg, #e8f4ff 0%, #fce8f4 100%);
+  }
+  .bg-aurora-d {
+    background:
+      radial-gradient(circle at 75% 12%, #ffd46b 0%, transparent 38%),
+      radial-gradient(circle at 20% 35%, #ffaec1 0%, transparent 40%),
+      radial-gradient(circle at 60% 88%, #a8c0ff 0%, transparent 48%),
+      linear-gradient(180deg, #fff0d4 0%, #e4e8ff 100%);
+  }
+  .bg-aurora-e {
+    background:
+      radial-gradient(circle at 20% 20%, #c8b5ff 0%, transparent 45%),
+      radial-gradient(circle at 85% 70%, #ffc8a8 0%, transparent 42%),
+      linear-gradient(180deg, #ece4ff 0%, #ffe8dc 100%);
+  }
+  .bg-aurora-f {
+    background:
+      radial-gradient(circle at 50% 15%, #a8d8ff 0%, transparent 50%),
+      radial-gradient(circle at 90% 85%, #ffc0b5 0%, transparent 45%),
+      linear-gradient(180deg, #dcecff 0%, #fff0ea 100%);
+  }
+
+  /* ——— 玻璃卡片基础 ——— */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    border-radius: 22px;
+  }
+  .glass-dark {
+    background: rgba(26,26,46,0.7);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #fff;
+  }
+
+  .content { padding: 68px 18px 24px; height: 100%; overflow: hidden; position: relative; }
+
+  /* ============================================ */
+  /* 屏 1：首页 / 总览                             */
+  /* ============================================ */
+  .s-home .greet-row { padding: 4px 8px 16px; display: flex; justify-content: space-between; align-items: center; }
+  .s-home .greet .hi { font-size: 13px; color: var(--ink-2); margin-bottom: 2px; }
+  .s-home .greet .name { font-size: 17px; font-weight: 500; }
+  .s-home .avatar { width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #ff9a7b, #c48aff);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px; font-weight: 500;
+  }
+  .s-home .hero-card { padding: 22px 20px 20px; margin-bottom: 14px; }
+  .s-home .hero-label { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 10px; }
+  .s-home .hero-amount {
+    font-size: 42px; font-weight: 200; letter-spacing: -0.02em;
+    line-height: 1; font-variant-numeric: tabular-nums; color: var(--ink);
+  }
+  .s-home .hero-amount .unit { font-size: 18px; vertical-align: top; color: var(--ink-2); margin-right: 4px; font-weight: 300; }
+  .s-home .hero-amount .cents { font-size: 20px; color: var(--ink-3); }
+  .s-home .hero-sub { display: flex; justify-content: space-between; margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.5); }
+  .s-home .hero-sub-item .k { font-size: 10px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+  .s-home .hero-sub-item .v { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .s-home .hero-sub-item .v.up { color: #d04a7a; }
+  .s-home .hero-sub-item .v.down { color: #4a8a5e; }
+
+  .s-home .quick-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+  .s-home .quick { padding: 14px 6px; text-align: center; border-radius: 18px; }
+  .s-home .quick .ico {
+    width: 34px; height: 34px; margin: 0 auto 6px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+  }
+  .s-home .quick .lbl { font-size: 10px; color: var(--ink-2); }
+  .ico-food { background: linear-gradient(135deg, #ffb199, #ff7a9c); color: #fff; }
+  .ico-trans { background: linear-gradient(135deg, #9cc0ff, #7a9cff); color: #fff; }
+  .ico-shop { background: linear-gradient(135deg, #d4a5ff, #a87aff); color: #fff; }
+  .ico-other { background: linear-gradient(135deg, #ffd46b, #ffa87a); color: #fff; }
+
+  .s-home .section-title { display: flex; justify-content: space-between; align-items: center; margin: 4px 4px 10px; }
+  .s-home .section-title .t { font-size: 13px; font-weight: 500; }
+  .s-home .section-title .more { font-size: 11px; color: var(--ink-3); }
+
+  .s-home .tx-list { padding: 8px; }
+  .tx-item { display: flex; align-items: center; gap: 12px; padding: 10px 8px; }
+  .tx-item + .tx-item { border-top: 1px solid rgba(255,255,255,0.4); }
+  .tx-item .ico { width: 34px; height: 34px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .tx-item .info { flex: 1; min-width: 0; }
+  .tx-item .info .t1 { font-size: 13px; font-weight: 500; margin-bottom: 1px; }
+  .tx-item .info .t2 { font-size: 10px; color: var(--ink-3); letter-spacing: 0.03em; }
+  .tx-item .amt { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .tx-item .amt.exp { color: var(--ink); }
+  .tx-item .amt.inc { color: #4a8a5e; }
+
+  /* ============================================ */
+  /* 屏 2：添加记账                                */
+  /* ============================================ */
+  .s-add .top-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px 16px; }
+  .s-add .top-row .close, .s-add .top-row .save {
+    font-size: 12px; color: var(--ink-2);
+    width: 56px; height: 28px; border-radius: 999px;
+    background: rgba(255,255,255,0.5);
+    display: flex; align-items: center; justify-content: center;
+    letter-spacing: 0.05em; backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.5);
+  }
+  .s-add .top-row .save { background: #1a1a2e; color: #fff; border-color: transparent; font-weight: 500; }
+  .s-add .top-row .title { font-size: 14px; font-weight: 500; }
+
+  .s-add .tab-toggle { display: flex; background: rgba(255,255,255,0.4); border-radius: 14px; padding: 4px; margin-bottom: 16px; border: 1px solid var(--glass-border); }
+  .s-add .tab-toggle .tb { flex: 1; text-align: center; padding: 8px 0; font-size: 12px; color: var(--ink-2); border-radius: 10px; }
+  .s-add .tab-toggle .tb.active { background: #1a1a2e; color: #fff; font-weight: 500; }
+
+  .s-add .amount-card { padding: 24px 20px; text-align: center; margin-bottom: 14px; }
+  .s-add .amt-lbl { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 12px; }
+  .s-add .amt-big {
+    font-size: 54px; font-weight: 200; letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums; line-height: 1;
+  }
+  .s-add .amt-big .cur { font-size: 22px; color: var(--ink-3); vertical-align: top; margin-right: 4px; }
+  .s-add .amt-big .cursor {
+    display: inline-block; width: 2px; height: 42px;
+    background: #ff6b9d; margin-left: 4px; vertical-align: middle;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+  .s-add .cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 14px; margin-bottom: 12px; }
+  .s-add .cat {
+    aspect-ratio: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px;
+    border-radius: 14px; font-size: 10px; color: var(--ink-2);
+    border: 1px solid transparent; background: rgba(255,255,255,0.25);
+  }
+  .s-add .cat.active { border-color: #1a1a2e; background: rgba(255,255,255,0.7); color: var(--ink); font-weight: 500; }
+  .s-add .cat .ci { font-size: 18px; }
+
+  .s-add .note-input { padding: 12px 16px; font-size: 12px; color: var(--ink-3); }
+
+  /* ============================================ */
+  /* 屏 3：账单明细                                 */
+  /* ============================================ */
+  .s-list .nav { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px 16px; }
+  .s-list .nav .t { font-size: 18px; font-weight: 500; }
+  .s-list .nav .ico-btn { width: 34px; height: 34px; border-radius: 12px; background: rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; font-size: 13px; border: 1px solid var(--glass-border); }
+
+  .s-list .summary-card { padding: 18px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .s-list .sc-left .sc-lbl { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px; }
+  .s-list .sc-left .sc-amt { font-size: 26px; font-weight: 300; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .s-list .sc-right { text-align: right; font-size: 10px; color: var(--ink-3); }
+  .s-list .sc-right .mini {
+    display: flex; gap: 2px; align-items: flex-end; height: 22px; margin-top: 6px;
+  }
+  .s-list .sc-right .mb {
+    width: 4px; background: linear-gradient(180deg, #ff9a7b, #c48aff);
+    border-radius: 2px; opacity: 0.7;
+  }
+
+  .s-list .day-group { margin-bottom: 12px; }
+  .s-list .day-header { display: flex; justify-content: space-between; padding: 0 12px 8px; }
+  .s-list .day-header .dl { font-size: 11px; color: var(--ink-2); letter-spacing: 0.05em; }
+  .s-list .day-header .ds { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .s-list .day-items { padding: 4px 8px; }
+
+  /* ============================================ */
+  /* 屏 4：数据统计                                 */
+  /* ============================================ */
+  .s-stat .nav { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px 14px; }
+  .s-stat .nav .t { font-size: 18px; font-weight: 500; }
+  .s-stat .nav .ico-btn { width: 34px; height: 34px; border-radius: 12px; background: rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; font-size: 13px; border: 1px solid var(--glass-border); }
+
+  .s-stat .period-tabs { display: flex; gap: 6px; padding: 4px; background: rgba(255,255,255,0.4); border-radius: 12px; margin-bottom: 14px; border: 1px solid var(--glass-border); }
+  .s-stat .period-tabs .pt { flex: 1; text-align: center; font-size: 11px; color: var(--ink-2); padding: 6px 0; border-radius: 8px; }
+  .s-stat .period-tabs .pt.active { background: #fff; color: var(--ink); font-weight: 500; }
+
+  .s-stat .donut-card { padding: 20px; margin-bottom: 12px; display: flex; gap: 18px; align-items: center; }
+  .s-stat .donut { position: relative; width: 110px; height: 110px; flex-shrink: 0; }
+  .s-stat .donut svg { width: 100%; height: 100%; }
+  .s-stat .donut .center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .s-stat .donut .center .k { font-size: 9px; color: var(--ink-3); letter-spacing: 0.15em; text-transform: uppercase; }
+  .s-stat .donut .center .v { font-size: 18px; font-weight: 300; font-variant-numeric: tabular-nums; }
+  .s-stat .legend { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .s-stat .lg-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+  .s-stat .lg-row .lg-l { display: flex; align-items: center; gap: 6px; }
+  .s-stat .lg-row .dot { width: 8px; height: 8px; border-radius: 2px; }
+  .s-stat .lg-row .lg-amt { font-variant-numeric: tabular-nums; font-weight: 500; }
+
+  .s-stat .trend-card { padding: 18px; }
+  .s-stat .trend-title { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+  .s-stat .trend-sub { font-size: 10px; color: var(--ink-3); margin-bottom: 16px; }
+  .s-stat .bars { display: flex; justify-content: space-between; align-items: flex-end; height: 80px; }
+  .s-stat .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .s-stat .bar-wrap { width: 16px; height: 80px; background: rgba(255,255,255,0.35); border-radius: 4px; display: flex; align-items: flex-end; overflow: hidden; }
+  .s-stat .bar { width: 100%; background: linear-gradient(180deg, #ff9a7b, #c48aff); border-radius: 4px; }
+  .s-stat .bar.hi { background: linear-gradient(180deg, #ff6b9d, #7ea8ff); }
+  .s-stat .bar-label { font-size: 9px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  /* ============================================ */
+  /* 屏 5：预算                                     */
+  /* ============================================ */
+  .s-budget .nav { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px 14px; }
+  .s-budget .nav .t { font-size: 18px; font-weight: 500; }
+  .s-budget .nav .ico-btn { width: 34px; height: 34px; border-radius: 12px; background: rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; font-size: 13px; border: 1px solid var(--glass-border); }
+
+  .s-budget .ring-card { padding: 22px 20px; text-align: center; margin-bottom: 14px; }
+  .s-budget .ring { width: 150px; height: 150px; margin: 0 auto 14px; position: relative; }
+  .s-budget .ring svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+  .s-budget .ring .center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .s-budget .ring .c-pct { font-size: 30px; font-weight: 200; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .s-budget .ring .c-lbl { font-size: 10px; color: var(--ink-3); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 4px; }
+  .s-budget .ring-info { display: flex; justify-content: space-around; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.5); }
+  .s-budget .ri-item { text-align: center; }
+  .s-budget .ri-item .k { font-size: 10px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+  .s-budget .ri-item .v { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  .s-budget .cat-card { padding: 10px; }
+  .cat-row { padding: 10px 10px; }
+  .cat-row + .cat-row { border-top: 1px solid rgba(255,255,255,0.4); }
+  .cat-row .r1 { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .cat-row .r1 .ico { width: 30px; height: 30px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .cat-row .r1 .nm { font-size: 12px; font-weight: 500; flex: 1; }
+  .cat-row .r1 .pr { font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .cat-row .r1 .pr b { color: var(--ink); font-weight: 500; }
+  .cat-row .r1 .pr.warn b { color: #d04a7a; }
+  .cat-row .track { height: 5px; background: rgba(255,255,255,0.45); border-radius: 99px; overflow: hidden; }
+  .cat-row .fill { height: 100%; border-radius: 99px; }
+  .fill-a { background: linear-gradient(90deg, #ffb199, #ff7a9c); }
+  .fill-b { background: linear-gradient(90deg, #9cc0ff, #7a9cff); }
+  .fill-c { background: linear-gradient(90deg, #d4a5ff, #a87aff); }
+  .fill-d { background: linear-gradient(90deg, #ffd46b, #ffa87a); }
+  .fill-e { background: linear-gradient(90deg, #a8e4d2, #7acfa5); }
+
+  /* ============================================ */
+  /* 屏 6：我的                                     */
+  /* ============================================ */
+  .s-me .profile-card { padding: 22px 20px; margin-bottom: 14px; display: flex; align-items: center; gap: 14px; }
+  .s-me .profile-card .ava {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, #ff9a7b, #c48aff);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 22px; font-weight: 500;
+  }
+  .s-me .pc-info .n { font-size: 16px; font-weight: 500; }
+  .s-me .pc-info .s { font-size: 11px; color: var(--ink-3); margin-top: 2px; letter-spacing: 0.05em; }
+  .s-me .pc-info .tag {
+    display: inline-block; margin-top: 6px; padding: 3px 10px;
+    background: linear-gradient(90deg, #ff6b9d, #c48aff);
+    color: #fff; font-size: 10px; border-radius: 999px; letter-spacing: 0.08em;
+  }
+
+  .s-me .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); padding: 14px 0; margin-bottom: 14px; }
+  .s-me .sr-item { text-align: center; padding: 0 4px; }
+  .s-me .sr-item + .sr-item { border-left: 1px solid rgba(255,255,255,0.5); }
+  .s-me .sr-item .k { font-size: 10px; color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+  .s-me .sr-item .v { font-size: 18px; font-weight: 300; font-variant-numeric: tabular-nums; }
+
+  .s-me .menu-card { padding: 4px 10px; }
+  .menu-row { display: flex; align-items: center; gap: 12px; padding: 12px 8px; }
+  .menu-row + .menu-row { border-top: 1px solid rgba(255,255,255,0.4); }
+  .menu-row .ico { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .menu-row .lbl { flex: 1; font-size: 13px; }
+  .menu-row .val { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .menu-row .arr { color: var(--ink-4); font-size: 14px; }
+
+  /* ——— 通用：Tab bar ——— */
+  .tabbar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 70px; padding: 0 16px 16px;
+    display: flex; align-items: flex-end; gap: 6px;
+  }
+  .tabbar .inner {
+    flex: 1; height: 52px; padding: 0 8px;
+    background: rgba(255,255,255,0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.7);
+    border-radius: 18px;
+    display: flex; align-items: center;
+    box-shadow: 0 8px 24px rgba(80,60,120,0.1);
+  }
+  .tabbar .tb { flex: 1; text-align: center; }
+  .tabbar .tb .i { font-size: 15px; color: var(--ink-3); }
+  .tabbar .tb .lb { font-size: 9px; color: var(--ink-3); margin-top: 1px; letter-spacing: 0.05em; }
+  .tabbar .tb.active .i { color: var(--ink); }
+  .tabbar .tb.active .lb { color: var(--ink); font-weight: 500; }
+  .tabbar .fab {
+    width: 52px; height: 52px; border-radius: 18px;
+    background: #1a1a2e; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 200;
+    box-shadow: 0 12px 28px rgba(26,26,46,0.4);
+  }
+
+  /* ——— 设计规范区 ——— */
+  .spec-section { margin-top: 100px; }
+  .spec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 40px; }
+  .spec-card {
+    background: rgba(255,255,255,0.5);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.7);
+    border-radius: 20px; padding: 28px;
+    box-shadow: 0 8px 32px rgba(80,60,120,0.08);
+  }
+  .spec-card h3 { font-size: 11px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 18px; font-weight: 500; }
+  .spec-card .item { margin-bottom: 16px; }
+  .spec-card .item:last-child { margin-bottom: 0; }
+  .spec-card .item .il { font-size: 11px; color: var(--ink-3); margin-bottom: 6px; letter-spacing: 0.05em; }
+  .spec-card .item .iv { font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .swatch-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .swatch { width: 44px; height: 44px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.05); position: relative; }
+  .swatch::after {
+    content: attr(data-c); position: absolute; bottom: -18px; left: 0; right: 0;
+    font-size: 9px; text-align: center; color: var(--ink-3); font-variant-numeric: tabular-nums;
+  }
+  .font-sample { display: flex; flex-direction: column; gap: 8px; }
+  .fs { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px dashed rgba(0,0,0,0.08); padding-bottom: 6px; }
+  .fs .fl { color: var(--ink); }
+  .fs .fr { font-size: 10px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  footer { margin-top: 100px; padding-top: 40px; border-top: 1px solid rgba(26,26,46,0.08); font-size: 12px; color: var(--ink-3); letter-spacing: 0.05em; text-align: center; }
+  footer em { font-style: normal; color: var(--ink); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="eyebrow">High-Fidelity Mockups · Glassmorphism</div>
+  <h1 class="title"><em>Glassbook</em><br>一款会呼吸的记账 App</h1>
+  <p class="lede">彩色光斑 + 磨砂玻璃 + 超细数字。把冷冰冰的账单数字包裹在柔和的光晕里，让"记账"这件事不再那么焦虑。以下 6 个核心页面覆盖了最常用的记账流程。</p>
+  <div class="meta">
+    <span>风格<strong>玻璃拟态</strong></span>
+    <span>屏幕<strong>6 张</strong></span>
+    <span>分辨率<strong>iPhone 15 Pro</strong></span>
+    <span>日期<strong>2026.04.19</strong></span>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="phone-grid">
+
+    <!-- ============ 屏 1：首页 ============ -->
+    <div class="phone-cell">
+      <div class="phone">
+        <div class="screen bg-aurora-a">
+          <div class="statusbar"><span>9:41</span><span class="right-icons">●●● 100%</span></div>
+          <div class="content s-home">
+            <div class="greet-row">
+              <div class="greet">
+                <div class="hi">下午好</div>
+                <div class="name">Roger</div>
+              </div>
+              <div class="avatar">R</div>
+            </div>
+
+            <div class="glass hero-card">
+              <div class="hero-label">本月支出</div>
+              <div class="hero-amount"><span class="unit">¥</span>4,286<span class="cents">.50</span></div>
+              <div class="hero-sub">
+                <div class="hero-sub-item">
+                  <div class="k">预算剩余</div>
+                  <div class="v down">¥1,713</div>
+                </div>
+                <div class="hero-sub-item">
+                  <div class="k">较上月</div>
+                  <div class="v up">↓ 12.4%</div>
+                </div>
+                <div class="hero-sub-item">
+                  <div class="k">日均</div>
+                  <div class="v">¥226</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="quick-row">
+              <div class="glass quick"><div class="ico ico-food">🍜</div><div class="lbl">餐饮</div></div>
+              <div class="glass quick"><div class="ico ico-trans">🚇</div><div class="lbl">交通</div></div>
+              <div class="glass quick"><div class="ico ico-shop">🛍</div><div class="lbl">购物</div></div>
+              <div class="glass quick"><div class="ico ico-other">✨</div><div class="lbl">更多</div></div>
+            </div>
+
+            <div class="section-title">
+              <div class="t">最近交易</div>
+              <div class="more">查看全部 ›</div>
+            </div>
+
+            <div class="glass tx-list">
+              <div class="tx-item">
+                <div class="ico ico-food">🍜</div>
+                <div class="info"><div class="t1">兰州牛肉面</div><div class="t2">今天 12:40 · 餐饮</div></div>
+                <div class="amt exp">-¥28</div>
+              </div>
+              <div class="tx-item">
+                <div class="ico ico-trans">🚇</div>
+                <div class="info"><div class="t1">地铁通勤</div><div class="t2">今天 09:12 · 交通</div></div>
+                <div class="amt exp">-¥6</div>
+              </div>
+              <div class="tx-item">
+                <div class="ico ico-shop">🛍</div>
+                <div class="info"><div class="t1">优衣库春装</div><div class="t2">昨天 19:30 · 购物</div></div>
+                <div class="amt exp">-¥299</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <div class="inner">
+              <div class="tb active"><div class="i">◉</div><div class="lb">首页</div></div>
+              <div class="tb"><div class="i">≡</div><div class="lb">账单</div></div>
+            </div>
+            <div class="fab">+</div>
+            <div class="inner">
+              <div class="tb"><div class="i">◔</div><div class="lb">统计</div></div>
+              <div class="tb"><div class="i">◐</div><div class="lb">我的</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <div class="cap-num">01 / HOME</div>
+        <div class="cap-title">首页 · 本月总览</div>
+        <div class="cap-note">进入即见"本月花了多少 / 还剩多少"，消除焦虑。快捷入口和最近交易各占一屏三分之一，浏览不费力。</div>
+      </div>
+    </div>
+
+    <!-- ============ 屏 2：添加记账 ============ -->
+    <div class="phone-cell">
+      <div class="phone">
+        <div class="screen bg-aurora-b">
+          <div class="statusbar"><span>9:41</span><span class="right-icons">●●● 100%</span></div>
+          <div class="content s-add">
+            <div class="top-row">
+              <div class="close">取消</div>
+              <div class="title">记一笔</div>
+              <div class="save">保存</div>
+            </div>
+
+            <div class="tab-toggle">
+              <div class="tb active">支出</div>
+              <div class="tb">收入</div>
+              <div class="tb">转账</div>
+            </div>
+
+            <div class="glass amount-card">
+              <div class="amt-lbl">金额</div>
+              <div class="amt-big"><span class="cur">¥</span>128<span class="cursor"></span></div>
+            </div>
+
+            <div class="glass cat-grid">
+              <div class="cat active"><span class="ci">🍜</span>餐饮</div>
+              <div class="cat"><span class="ci">🚇</span>交通</div>
+              <div class="cat"><span class="ci">🛍</span>购物</div>
+              <div class="cat"><span class="ci">🎬</span>娱乐</div>
+              <div class="cat"><span class="ci">🏠</span>居家</div>
+              <div class="cat"><span class="ci">💊</span>医疗</div>
+              <div class="cat"><span class="ci">📚</span>学习</div>
+              <div class="cat"><span class="ci">✨</span>其他</div>
+            </div>
+
+            <div class="glass note-input">✏️ 添加备注…</div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <div class="cap-num">02 / ADD</div>
+        <div class="cap-title">添加记账 · 30 秒记一笔</div>
+        <div class="cap-note">大字号金额是视觉焦点，下方分类网格一眼可见。深色"保存"按钮是屏幕上唯一的实色元素，引导明确。</div>
+      </div>
+    </div>
+
+    <!-- ============ 屏 3：账单 ============ -->
+    <div class="phone-cell">
+      <div class="phone">
+        <div class="screen bg-aurora-c">
+          <div class="statusbar"><span>9:41</span><span class="right-icons">●●● 100%</span></div>
+          <div class="content s-list">
+            <div class="nav">
+              <div class="ico-btn">←</div>
+              <div class="t">4 月账单</div>
+              <div class="ico-btn">⚲</div>
+            </div>
+
+            <div class="glass summary-card">
+              <div class="sc-left">
+                <div class="sc-lbl">本月支出</div>
+                <div class="sc-amt">¥4,286.50</div>
+              </div>
+              <div class="sc-right">
+                <div>共 62 笔</div>
+                <div class="mini">
+                  <div class="mb" style="height:40%"></div>
+                  <div class="mb" style="height:70%"></div>
+                  <div class="mb" style="height:50%"></div>
+                  <div class="mb" style="height:90%"></div>
+                  <div class="mb" style="height:30%"></div>
+                  <div class="mb" style="height:60%"></div>
+                  <div class="mb" style="height:80%"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="day-group">
+              <div class="day-header"><div class="dl">4 月 19 日 · 今天</div><div class="ds">-¥34</div></div>
+              <div class="glass day-items">
+                <div class="tx-item">
+                  <div class="ico ico-food">🍜</div>
+                  <div class="info"><div class="t1">兰州牛肉面</div><div class="t2">12:40 · 午餐</div></div>
+                  <div class="amt exp">-¥28</div>
+                </div>
+                <div class="tx-item">
+                  <div class="ico ico-trans">🚇</div>
+                  <div class="info"><div class="t1">地铁通勤</div><div class="t2">09:12 · 上班</div></div>
+                  <div class="amt exp">-¥6</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="day-group">
+              <div class="day-header"><div class="dl">4 月 18 日 · 昨天</div><div class="ds">-¥345</div></div>
+              <div class="glass day-items">
+                <div class="tx-item">
+                  <div class="ico ico-shop">🛍</div>
+                  <div class="info"><div class="t1">优衣库春装</div><div class="t2">19:30 · 商场</div></div>
+                  <div class="amt exp">-¥299</div>
+                </div>
+                <div class="tx-item">
+                  <div class="ico ico-food">☕</div>
+                  <div class="info"><div class="t1">星巴克拿铁</div><div class="t2">15:20 · 下午茶</div></div>
+                  <div class="amt exp">-¥42</div>
+                </div>
+                <div class="tx-item">
+                  <div class="ico" style="background:linear-gradient(135deg,#a8e4d2,#7acfa5);color:#fff;">💰</div>
+                  <div class="info"><div class="t1">工资到账</div><div class="t2">10:00 · 月薪</div></div>
+                  <div class="amt inc">+¥18,500</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <div class="cap-num">03 / LIST</div>
+        <div class="cap-title">账单明细 · 按日分组</div>
+        <div class="cap-note">顶部总额配迷你柱状图交代"本月花费节奏"。按日期分组比纯时间流更易扫读，支出用黑色、收入用绿色，区分温柔。</div>
+      </div>
+    </div>
+
+    <!-- ============ 屏 4：统计 ============ -->
+    <div class="phone-cell">
+      <div class="phone">
+        <div class="screen bg-aurora-d">
+          <div class="statusbar"><span>9:41</span><span class="right-icons">●●● 100%</span></div>
+          <div class="content s-stat">
+            <div class="nav">
+              <div class="ico-btn">←</div>
+              <div class="t">数据洞察</div>
+              <div class="ico-btn">⇣</div>
+            </div>
+
+            <div class="period-tabs">
+              <div class="pt">周</div>
+              <div class="pt active">月</div>
+              <div class="pt">季</div>
+              <div class="pt">年</div>
+            </div>
+
+            <div class="glass donut-card">
+              <div class="donut">
+                <svg viewBox="0 0 42 42">
+                  <circle cx="21" cy="21" r="15.9" fill="transparent" stroke="rgba(255,255,255,0.4)" stroke-width="6"/>
+                  <circle cx="21" cy="21" r="15.9" fill="transparent" stroke="#ff7a9c" stroke-width="6" stroke-dasharray="35 100" stroke-dashoffset="25" transform="rotate(-90 21 21)"/>
+                  <circle cx="21" cy="21" r="15.9" fill="transparent" stroke="#7a9cff" stroke-width="6" stroke-dasharray="22 100" stroke-dashoffset="-10" transform="rotate(-90 21 21)"/>
+                  <circle cx="21" cy="21" r="15.9" fill="transparent" stroke="#a87aff" stroke-width="6" stroke-dasharray="18 100" stroke-dashoffset="-32" transform="rotate(-90 21 21)"/>
+                  <circle cx="21" cy="21" r="15.9" fill="transparent" stroke="#ffa87a" stroke-width="6" stroke-dasharray="12 100" stroke-dashoffset="-50" transform="rotate(-90 21 21)"/>
+                  <circle cx="21" cy="21" r="15.9" fill="transparent" stroke="#7acfa5" stroke-width="6" stroke-dasharray="13 100" stroke-dashoffset="-62" transform="rotate(-90 21 21)"/>
+                </svg>
+                <div class="center">
+                  <div class="k">总支出</div>
+                  <div class="v">¥4,286</div>
+                </div>
+              </div>
+              <div class="legend">
+                <div class="lg-row"><div class="lg-l"><span class="dot" style="background:#ff7a9c;"></span>餐饮</div><div class="lg-amt">¥1,500</div></div>
+                <div class="lg-row"><div class="lg-l"><span class="dot" style="background:#7a9cff;"></span>交通</div><div class="lg-amt">¥943</div></div>
+                <div class="lg-row"><div class="lg-l"><span class="dot" style="background:#a87aff;"></span>购物</div><div class="lg-amt">¥771</div></div>
+                <div class="lg-row"><div class="lg-l"><span class="dot" style="background:#ffa87a;"></span>居家</div><div class="lg-amt">¥515</div></div>
+                <div class="lg-row"><div class="lg-l"><span class="dot" style="background:#7acfa5;"></span>其他</div><div class="lg-amt">¥557</div></div>
+              </div>
+            </div>
+
+            <div class="glass trend-card">
+              <div class="trend-title">近 7 月支出趋势</div>
+              <div class="trend-sub">月均 ¥4,612 · 本月低于平均</div>
+              <div class="bars">
+                <div class="bar-col"><div class="bar-wrap"><div class="bar" style="height:65%"></div></div><div class="bar-label">10</div></div>
+                <div class="bar-col"><div class="bar-wrap"><div class="bar" style="height:82%"></div></div><div class="bar-label">11</div></div>
+                <div class="bar-col"><div class="bar-wrap"><div class="bar" style="height:95%"></div></div><div class="bar-label">12</div></div>
+                <div class="bar-col"><div class="bar-wrap"><div class="bar" style="height:70%"></div></div><div class="bar-label">01</div></div>
+                <div class="bar-col"><div class="bar-wrap"><div class="bar" style="height:78%"></div></div><div class="bar-label">02</div></div>
+                <div class="bar-col"><div class="bar-wrap"><div class="bar" style="height:88%"></div></div><div class="bar-label">03</div></div>
+                <div class="bar-col"><div class="bar-wrap"><div class="bar hi" style="height:60%"></div></div><div class="bar-label">04</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <div class="cap-num">04 / STATS</div>
+        <div class="cap-title">数据统计 · 分类 & 趋势</div>
+        <div class="cap-note">环形图快速看"钱花在哪"，下方柱状图看"今年走势"。每个数据都给一句人话解读（如"低于月均"），降低阅读门槛。</div>
+      </div>
+    </div>
+
+    <!-- ============ 屏 5：预算 ============ -->
+    <div class="phone-cell">
+      <div class="phone">
+        <div class="screen bg-aurora-e">
+          <div class="statusbar"><span>9:41</span><span class="right-icons">●●● 100%</span></div>
+          <div class="content s-budget">
+            <div class="nav">
+              <div class="ico-btn">←</div>
+              <div class="t">4 月预算</div>
+              <div class="ico-btn">✎</div>
+            </div>
+
+            <div class="glass ring-card">
+              <div class="ring">
+                <svg viewBox="0 0 42 42">
+                  <circle cx="21" cy="21" r="18" fill="transparent" stroke="rgba(255,255,255,0.5)" stroke-width="3"/>
+                  <circle cx="21" cy="21" r="18" fill="transparent" stroke="url(#g1)" stroke-width="3" stroke-linecap="round" stroke-dasharray="71.4 113" />
+                  <defs>
+                    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stop-color="#ff6b9d"/>
+                      <stop offset="100%" stop-color="#7ea8ff"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div class="center">
+                  <div class="c-pct">71%</div>
+                  <div class="c-lbl">已使用</div>
+                </div>
+              </div>
+              <div class="ring-info">
+                <div class="ri-item"><div class="k">已花</div><div class="v">¥4,286</div></div>
+                <div class="ri-item"><div class="k">剩余</div><div class="v">¥1,713</div></div>
+                <div class="ri-item"><div class="k">预算</div><div class="v">¥6,000</div></div>
+              </div>
+            </div>
+
+            <div class="glass cat-card">
+              <div class="cat-row">
+                <div class="r1">
+                  <div class="ico ico-food">🍜</div>
+                  <div class="nm">餐饮</div>
+                  <div class="pr"><b>¥1,500</b> / ¥1,800</div>
+                </div>
+                <div class="track"><div class="fill fill-a" style="width:83%"></div></div>
+              </div>
+              <div class="cat-row">
+                <div class="r1">
+                  <div class="ico ico-trans">🚇</div>
+                  <div class="nm">交通</div>
+                  <div class="pr"><b>¥943</b> / ¥1,200</div>
+                </div>
+                <div class="track"><div class="fill fill-b" style="width:78%"></div></div>
+              </div>
+              <div class="cat-row">
+                <div class="r1">
+                  <div class="ico ico-shop">🛍</div>
+                  <div class="nm">购物</div>
+                  <div class="pr warn"><b>¥771</b> / ¥800</div>
+                </div>
+                <div class="track"><div class="fill fill-c" style="width:96%"></div></div>
+              </div>
+              <div class="cat-row">
+                <div class="r1">
+                  <div class="ico ico-other">🏠</div>
+                  <div class="nm">居家</div>
+                  <div class="pr"><b>¥515</b> / ¥1,000</div>
+                </div>
+                <div class="track"><div class="fill fill-d" style="width:51%"></div></div>
+              </div>
+              <div class="cat-row">
+                <div class="r1">
+                  <div class="ico" style="background:linear-gradient(135deg,#a8e4d2,#7acfa5);color:#fff;">🎬</div>
+                  <div class="nm">娱乐</div>
+                  <div class="pr"><b>¥280</b> / ¥600</div>
+                </div>
+                <div class="track"><div class="fill fill-e" style="width:47%"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <div class="cap-num">05 / BUDGET</div>
+        <div class="cap-title">预算 · 让焦虑可视化</div>
+        <div class="cap-note">顶部总进度环 + 下方分类进度条。接近 100% 的分类金额变红（如"购物 96%"），无需弹窗也能预警。</div>
+      </div>
+    </div>
+
+    <!-- ============ 屏 6：我的 ============ -->
+    <div class="phone-cell">
+      <div class="phone">
+        <div class="screen bg-aurora-f">
+          <div class="statusbar"><span>9:41</span><span class="right-icons">●●● 100%</span></div>
+          <div class="content s-me">
+            <div class="glass profile-card">
+              <div class="ava">R</div>
+              <div class="pc-info">
+                <div class="n">Roger Dupuis</div>
+                <div class="s">sterusen423@hotmail.com</div>
+                <span class="tag">PRO 会员 · 至 2027.04</span>
+              </div>
+            </div>
+
+            <div class="glass stat-row">
+              <div class="sr-item"><div class="k">已记</div><div class="v">284</div></div>
+              <div class="sr-item"><div class="k">连续</div><div class="v">46</div></div>
+              <div class="sr-item"><div class="k">存款</div><div class="v">¥28.6K</div></div>
+            </div>
+
+            <div class="glass menu-card">
+              <div class="menu-row">
+                <div class="ico" style="background:linear-gradient(135deg,#ffb199,#ff7a9c);color:#fff;">◎</div>
+                <div class="lbl">账户与同步</div>
+                <div class="val">iCloud</div>
+                <div class="arr">›</div>
+              </div>
+              <div class="menu-row">
+                <div class="ico" style="background:linear-gradient(135deg,#9cc0ff,#7a9cff);color:#fff;">◔</div>
+                <div class="lbl">预算设置</div>
+                <div class="val">¥6,000 / 月</div>
+                <div class="arr">›</div>
+              </div>
+              <div class="menu-row">
+                <div class="ico" style="background:linear-gradient(135deg,#d4a5ff,#a87aff);color:#fff;">◧</div>
+                <div class="lbl">分类管理</div>
+                <div class="val">12 类</div>
+                <div class="arr">›</div>
+              </div>
+              <div class="menu-row">
+                <div class="ico" style="background:linear-gradient(135deg,#ffd46b,#ffa87a);color:#fff;">◇</div>
+                <div class="lbl">外观与主题</div>
+                <div class="val">玻璃·浅</div>
+                <div class="arr">›</div>
+              </div>
+              <div class="menu-row">
+                <div class="ico" style="background:linear-gradient(135deg,#a8e4d2,#7acfa5);color:#fff;">◈</div>
+                <div class="lbl">数据导出</div>
+                <div class="val">CSV / PDF</div>
+                <div class="arr">›</div>
+              </div>
+              <div class="menu-row">
+                <div class="ico" style="background:rgba(26,26,46,0.1);color:var(--ink-2);">?</div>
+                <div class="lbl">关于 Glassbook</div>
+                <div class="val">v 1.0</div>
+                <div class="arr">›</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <div class="cap-num">06 / ME</div>
+        <div class="cap-title">我的 · 个人中心</div>
+        <div class="cap-note">头像卡片 + 打卡数据 + 设置列表。每个菜单项右侧显示当前值（如"¥6,000 / 月"），减少一级跳转。</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ 设计规范 ============ -->
+  <div class="spec-section">
+    <div class="eyebrow">Design Tokens · 设计规范</div>
+    <h1 class="title" style="font-size:40px;">这套风格的<em>具体参数</em></h1>
+    <p class="lede" style="font-size:16px;">如果你要交给开发，或者要在 Figma 里自己搭建，直接按下面这些变量来设置就好——全部对齐后，整个 app 的"高级感"会自己浮现。</p>
+
+    <div class="spec-grid">
+
+      <div class="spec-card">
+        <h3>Color · 配色</h3>
+        <div class="item">
+          <div class="il">背景光斑（Aurora）</div>
+          <div class="swatch-row">
+            <div class="swatch" style="background:#ff9a7b;" data-c="#FF9A7B"></div>
+            <div class="swatch" style="background:#7ea8ff;" data-c="#7EA8FF"></div>
+            <div class="swatch" style="background:#c48aff;" data-c="#C48AFF"></div>
+            <div class="swatch" style="background:#ffd46b;" data-c="#FFD46B"></div>
+          </div>
+        </div>
+        <div class="item" style="margin-top:30px;">
+          <div class="il">玻璃卡片</div>
+          <div class="iv">rgba(255,255,255, <b>0.38</b>)<br>边框 rgba(255,255,255, 0.6)</div>
+        </div>
+        <div class="item">
+          <div class="il">文字主色</div>
+          <div class="iv">#1A1A2E（深靛青，比纯黑更柔）</div>
+        </div>
+        <div class="item">
+          <div class="il">强调色</div>
+          <div class="iv">#FF6B9D → #7EA8FF（渐变）</div>
+        </div>
+      </div>
+
+      <div class="spec-card">
+        <h3>Typography · 字体</h3>
+        <div class="font-sample">
+          <div class="fs"><div class="fl" style="font-size:32px;font-weight:200;letter-spacing:-0.02em;">¥4,286</div><div class="fr">44 / 200 / -2%</div></div>
+          <div class="fs"><div class="fl" style="font-size:20px;font-weight:300;">本月支出</div><div class="fr">20 / 300</div></div>
+          <div class="fs"><div class="fl" style="font-size:15px;font-weight:500;">兰州牛肉面</div><div class="fr">15 / 500</div></div>
+          <div class="fs"><div class="fl" style="font-size:13px;color:var(--ink-2);">今天 12:40 · 餐饮</div><div class="fr">13 / 400</div></div>
+          <div class="fs"><div class="fl" style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-3);">BALANCE</div><div class="fr">11 / 500 / +20%</div></div>
+        </div>
+        <div class="item" style="margin-top:24px;">
+          <div class="il">字体族</div>
+          <div class="iv">SF Pro Display · 苹方 PingFang SC</div>
+        </div>
+      </div>
+
+      <div class="spec-card">
+        <h3>Layout · 尺寸</h3>
+        <div class="item">
+          <div class="il">圆角</div>
+          <div class="iv">卡片 <b>22px</b>｜按钮 <b>14px</b>｜头像圆形</div>
+        </div>
+        <div class="item">
+          <div class="il">间距（8 倍基数）</div>
+          <div class="iv">4 · 8 · 12 · 16 · 20 · 24 · 32 · 48</div>
+        </div>
+        <div class="item">
+          <div class="il">模糊强度</div>
+          <div class="iv">backdrop-filter: blur(<b>30px</b>) saturate(180%)</div>
+        </div>
+        <div class="item">
+          <div class="il">阴影</div>
+          <div class="iv">0 8px 32px rgba(80,60,120, 0.1)</div>
+        </div>
+        <div class="item">
+          <div class="il">安全边距</div>
+          <div class="iv">左右 18–24px｜顶部状态栏下 20px</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    <em>Glassbook</em> · 高保真设计稿 · 6 屏 · for Roger · 2026.04.19<br>
+    看完如果有想调整的屏或者想加的功能，告诉我，我继续迭代。
+  </footer>
+
+</div>
+</body>
+</html>
