@@ -638,6 +638,9 @@ struct SmartImportConfirmScreen: View {
     var onCancel: () -> Void
     var onConfirm: () -> Void
     @State private var editingRowID: PendingImportRow.ID?
+    @State private var aiClassifying: Bool = false
+    @State private var aiError: String?
+    @State private var aiAppliedCount: Int = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -713,17 +716,72 @@ struct SmartImportConfirmScreen: View {
     private var totalCents: Int { rows.reduce(0) { $0 + $1.amountCents } }
 
     private var batchBar: some View {
-        HStack {
-            Text("已选 \(selectedCount)/\(rows.count)")
-                .font(.system(size: 11)).foregroundStyle(AppColors.ink2)
-            Spacer()
-            Button { toggleAll() } label: {
-                Text(selectedCount == rows.count ? "取消全选" : "全选")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(AppColors.ink)
+        VStack(spacing: 6) {
+            HStack {
+                Text("已选 \(selectedCount)/\(rows.count)")
+                    .font(.system(size: 11)).foregroundStyle(AppColors.ink2)
+                Spacer()
+                Button { Task { await runAIClassify() } } label: {
+                    HStack(spacing: 4) {
+                        if aiClassifying {
+                            ProgressView().controlSize(.mini).tint(.white)
+                        } else {
+                            Image(systemName: "sparkles").font(.system(size: 10))
+                        }
+                        Text(aiClassifying ? "AI 分类中…" : "AI 自动分类")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Capsule().fill(LinearGradient.brand()))
+                }
+                .buttonStyle(.plain)
+                .disabled(aiClassifying || rows.isEmpty)
+                .opacity(aiClassifying ? 0.6 : 1)
+                Button { toggleAll() } label: {
+                    Text(selectedCount == rows.count ? "取消全选" : "全选")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(AppColors.ink)
+                }
+            }
+            if let msg = aiError {
+                Text(msg).font(.system(size: 10))
+                    .foregroundStyle(AppColors.expenseRed)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if aiAppliedCount > 0 {
+                Text("✓ AI 重新分类了 \(aiAppliedCount) 笔")
+                    .font(.system(size: 10))
+                    .foregroundStyle(AppColors.successGreen)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(.horizontal, 26).padding(.vertical, 8)
+    }
+
+    private func runAIClassify() async {
+        aiClassifying = true
+        aiError = nil
+        aiAppliedCount = 0
+        defer { aiClassifying = false }
+        do {
+            let assigned = try await LLMClassifier.categorize(rows)
+            var changed = 0
+            for i in rows.indices {
+                if let newCat = assigned[rows[i].id], newCat != rows[i].categoryID {
+                    rows[i].categoryID = newCat
+                    changed += 1
+                }
+            }
+            aiAppliedCount = changed
+            if changed == 0 && assigned.isEmpty {
+                aiError = "AI 没返回有效结果 · 请换个模型"
+            }
+        } catch let e as LLMClassifier.Failure {
+            aiError = e.errorDescription
+        } catch {
+            aiError = error.localizedDescription
+        }
     }
 
     private var selectedCount: Int { rows.filter(\.isSelected).count }
