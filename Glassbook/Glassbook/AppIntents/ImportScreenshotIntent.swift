@@ -22,6 +22,11 @@ struct ImportScreenshotIntent: AppIntent {
     var screenshot: IntentFile
 
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
+        // User-level kill switch — lets them pause auto-import without
+        // uninstalling their Shortcut automation.
+        guard AutomationSettings.screenshotOn else {
+            return .result(value: "截屏自动识别已在 Glassbook 里关闭 · 打开 App → 自动化记账 → 开启")
+        }
         guard let image = UIImage(data: screenshot.data) else {
             return .result(value: "图片读取失败")
         }
@@ -52,12 +57,14 @@ struct ImportScreenshotIntent: AppIntent {
 
         // Start Live Activity (best-effort — some states don't allow background starts).
         let categoryEmoji = Category.by(first.categoryID).emoji
+        let delay = AutomationSettings.autoSaveDelay
+        let autoSave = delay == -1 ? 5 : max(1, delay)  // -1 "never" falls back to a short window
         _ = await MainActor.run {
             LiveActivityService.shared.start(
                 pendingAmountCents: first.amountCents,
                 merchant: first.merchant,
                 categoryEmoji: categoryEmoji,
-                autoSaveSeconds: 5,
+                autoSaveSeconds: autoSave,
                 onAutoCommit: { _ in /* main app drains the queue */ }
             )
         }

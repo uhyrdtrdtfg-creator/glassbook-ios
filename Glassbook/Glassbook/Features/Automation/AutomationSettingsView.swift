@@ -6,9 +6,7 @@ import SwiftUI
 struct AutomationSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppStore.self) private var store
-    @AppStorage("automation.screenshotOn") private var screenshotOn = true
-    @AppStorage("automation.smsOn") private var smsOn = false
-    @AppStorage("automation.mcpOn") private var mcpOn = true
+    @State private var screenshotOn: Bool = AutomationSettings.screenshotOn
     @AppStorage("automation.autoSaveDelay") private var autoSaveDelay: Int = 5
     private var monthAutoCount: Int { store.autoImportedCountThisMonth }
     private var monthAutoCentsSaved: Int { store.autoImportedCentsThisMonth }
@@ -24,19 +22,22 @@ struct AutomationSettingsView: View {
                         icon: "viewfinder",
                         title: "截屏自动识别",
                         detail: "iOS 快捷指令监听截屏相册 · 非支付截图会被自动忽略",
-                        isOn: $screenshotOn
+                        isOn: Binding(
+                            get: { screenshotOn },
+                            set: { new in screenshotOn = new; AutomationSettings.screenshotOn = new }
+                        )
                     )
-                    channelCard(
+                    comingSoonRow(
                         icon: "message.badge",
                         title: "短信入账 (招行 / 建行 / 工行)",
-                        detail: "仅本地正则匹配 · 原文不上传",
-                        isOn: $smsOn
+                        detail: "iOS 限制第三方 App 读短信,需等 Messages Filter 扩展支持",
+                        badge: "即将支持"
                     )
-                    channelCard(
+                    infoRow(
                         icon: "bolt.horizontal.circle",
                         title: "MCP 对话入账",
-                        detail: "Claude Desktop / Cline / Zed 已连接",
-                        isOn: $mcpOn
+                        detail: "独立 Mac 进程 · Claude Desktop / Cline / Zed 连接,常开",
+                        badge: "Mac 进程"
                     )
                     delayCard
                     savingsCard
@@ -47,6 +48,9 @@ struct AutomationSettingsView: View {
                 .padding(.top, 8)
             }
             .scrollIndicators(.hidden)
+        }
+        .onChange(of: autoSaveDelay) { _, new in
+            AutomationSettings.autoSaveDelay = new
         }
     }
 
@@ -130,6 +134,58 @@ struct AutomationSettingsView: View {
             Toggle("", isOn: isOn)
                 .labelsHidden()
                 .tint(AppColors.ink)
+        }
+        .padding(14)
+        .glassCard()
+    }
+
+    /// Disabled channel row — shows the feature but flags it as not yet
+    /// wired so users don't flip an ornament.
+    private func comingSoonRow(icon: String, title: String, detail: String, badge: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(AppColors.ink3)
+                .frame(width: 36, height: 36)
+                .background(RoundedRectangle(cornerRadius: 11).fill(Color.white.opacity(0.35)))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(AppColors.ink2)
+                Text(detail).font(.system(size: 10))
+                    .foregroundStyle(AppColors.ink3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            Text(badge).font(.system(size: 9, weight: .medium))
+                .foregroundStyle(AppColors.auroraAmber)
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(Capsule().fill(AppColors.auroraAmber.opacity(0.18)))
+        }
+        .padding(14)
+        .glassCard()
+        .opacity(0.75)
+    }
+
+    /// Informational channel row — the feature exists but runs out of band
+    /// (e.g. MCP Server on Mac), so there's nothing to toggle from iOS.
+    private func infoRow(icon: String, title: String, detail: String, badge: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(AppColors.ink2)
+                .frame(width: 36, height: 36)
+                .background(RoundedRectangle(cornerRadius: 11).fill(Color.white.opacity(0.55)))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.system(size: 13, weight: .medium))
+                Text(detail).font(.system(size: 10))
+                    .foregroundStyle(AppColors.ink3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            Text(badge).font(.system(size: 9, weight: .medium))
+                .foregroundStyle(AppColors.successGreen)
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(Capsule().fill(AppColors.successGreen.opacity(0.18)))
         }
         .padding(14)
         .glassCard()
