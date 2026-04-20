@@ -142,16 +142,19 @@ final class AIEngineStore {
     }
 
     func setModel(_ model: String, for engine: Engine) {
-        var c = config(for: engine); c.model = model
+        var c = config(for: engine); c.model = model.normalizingSmartPunctuation()
         configs[engine] = c
     }
     func setBaseURL(_ url: String, for engine: Engine) {
-        var c = config(for: engine); c.baseURL = url
+        var c = config(for: engine); c.baseURL = url.normalizingSmartPunctuation()
         configs[engine] = c
     }
     func setAPIKey(_ key: String, for engine: Engine) {
-        KeychainService.set(key, for: engine.keychainAccount)
-        var c = config(for: engine); c.connected = !key.isEmpty
+        // API keys are hex / base64-ish — curly quotes or en-dashes in them
+        // always mean auto-correct, never user intent.
+        let normalized = key.normalizingSmartPunctuation()
+        KeychainService.set(normalized, for: engine.keychainAccount)
+        var c = config(for: engine); c.connected = !normalized.isEmpty
         configs[engine] = c
     }
     func apiKey(for engine: Engine) -> String? {

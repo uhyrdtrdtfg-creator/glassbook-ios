@@ -316,24 +316,27 @@ enum WebhookTemplate {
     /// Replace every `{{key}}` with the matching value. Unknown keys render as
     /// empty strings so a half-configured template doesn't ship `{{foo}}`
     /// literals. Values are JSON-string-escaped so a title containing `"` or
-    /// `\n` still produces valid JSON.
+    /// `\n` still produces valid JSON. Input template is normalized for iOS
+    /// smart punctuation — a curly "key": "val" would otherwise produce
+    /// invalid JSON and silently fail on Slack / 飞书 / 钉钉.
     static func render(_ template: String, context: TemplateContext) -> String {
+        let cleaned = template.normalizingSmartPunctuation()
         let vars = context.variables
         var out = ""
-        out.reserveCapacity(template.count)
-        var i = template.startIndex
-        while i < template.endIndex {
-            if template[i...].hasPrefix("{{"),
-               let end = template.range(of: "}}", range: i..<template.endIndex) {
-                let keyStart = template.index(i, offsetBy: 2)
-                let key = template[keyStart..<end.lowerBound]
+        out.reserveCapacity(cleaned.count)
+        var i = cleaned.startIndex
+        while i < cleaned.endIndex {
+            if cleaned[i...].hasPrefix("{{"),
+               let end = cleaned.range(of: "}}", range: i..<cleaned.endIndex) {
+                let keyStart = cleaned.index(i, offsetBy: 2)
+                let key = cleaned[keyStart..<end.lowerBound]
                     .trimmingCharacters(in: .whitespaces)
                 let raw = vars[key] ?? ""
                 out += jsonEscape(raw)
                 i = end.upperBound
             } else {
-                out.append(template[i])
-                i = template.index(after: i)
+                out.append(cleaned[i])
+                i = cleaned.index(after: i)
             }
         }
         return out

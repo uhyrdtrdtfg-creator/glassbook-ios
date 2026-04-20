@@ -251,6 +251,14 @@ private struct EndpointEditSheet: View {
                 .font(.system(size: 16, weight: .medium))
             Spacer()
             Button("保存") {
+                // Belt-and-suspenders: clear iOS smart quotes / dashes / ellipsis
+                // from any structured field before persisting. SmartPunctuation
+                // is already disabled globally, but historical text typed on
+                // earlier builds may still carry curly quotes that would break
+                // JSON bodies on Slack / 飞书 / 钉钉.
+                endpoint.url = endpoint.url.normalizingSmartPunctuation()
+                endpoint.bodyTemplate = endpoint.bodyTemplate.normalizingSmartPunctuation()
+                endpoint.contentType = endpoint.contentType.normalizingSmartPunctuation()
                 onSave(endpoint)
                 dismiss()
             }

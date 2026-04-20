@@ -12,6 +12,11 @@ struct GlassbookApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        // Kill iOS smart punctuation (curly "", en/em dashes, ellipsis) on
+        // every text input — critical for Webhook BODY templates / API keys /
+        // base URLs where one curly quote breaks JSON parsing on Slack etc.
+        SmartPunctuation.disableGlobally()
+
         let c = PersistenceController.makeDiskContainer(useCloudKit: true)
         _store = State(initialValue: AppStore(container: c))
         // Route merchant learning through a sibling context (same container → same SQLite).
