@@ -133,7 +133,8 @@ sudo cp .build/release/glassbook-mcp /usr/local/bin/
 
 ## 发布到 App Store
 
-完整流程(证书 / Profile / TestFlight / 审核)见 **[docs/RELEASE.md](docs/RELEASE.md)**。
+- **[docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md)** · 自动推送更新是怎么做的 · 三层自动化链路
+- **[docs/RELEASE.md](docs/RELEASE.md)** · 详细的证书 / Profile / TestFlight / 审核步骤
 
 一次性配好 8 个 GitHub secret 后,每次发版只需要两行:
 
@@ -143,7 +144,7 @@ git push origin v1.3.0
 ```
 
 [`.github/workflows/release.yml`](.github/workflows/release.yml) 会自动 archive + 上传 TestFlight,并开一个 GitHub Release。
-日常 push / PR 由 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) 跑 279 个测试。
+日常 push / PR 由 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) 跑 287 个测试。
 
 ## 文档
 
@@ -152,7 +153,8 @@ git push origin v1.3.0
 - [glassbook-smart-import.html](glassbook-smart-import.html) · 智能识别 4 屏流程
 - [glassbook-feature-insights.html](glassbook-feature-insights.html) · 扩展功能图谱
 - [glassbook-advanced-features.html](glassbook-advanced-features.html) · Local-First Synthesis v2
-- [docs/RELEASE.md](docs/RELEASE.md) · 发布手册
+- [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md) · 自动推送更新三层机制
+- [docs/RELEASE.md](docs/RELEASE.md) · 发布手册(证书 / TestFlight / 审核)
 
 ## License
 
