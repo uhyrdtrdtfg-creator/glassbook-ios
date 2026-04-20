@@ -24,6 +24,14 @@ enum LLMClient {
                      messages: [Message]) async throws -> String {
         let store = AIEngineStore.shared
         let cfg = store.config(for: engine)
+
+        // PhoneClaw 本地模型,不走 HTTP 也没有 API key,单独分一条路:
+        // 把整轮 messages 拼成单 prompt,丢给 PhoneClawClient 的 URL-scheme RPC。
+        if engine == .phoneclaw {
+            let prompt = messages.map { "\($0.role): \($0.content)" }.joined(separator: "\n\n")
+            return try await PhoneClawClient.ask(prompt: prompt)
+        }
+
         guard let apiKey = store.apiKey(for: engine), !apiKey.isEmpty else {
             throw ClientError.missingKey
         }

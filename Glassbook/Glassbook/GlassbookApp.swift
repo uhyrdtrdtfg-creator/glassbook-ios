@@ -35,6 +35,11 @@ struct GlassbookApp: App {
                 }
             }
             .animation(.easeInOut(duration: 0.25), value: lock.isLocked)
+            .onOpenURL { url in
+                // PhoneClaw RPC callback — 唤回 Glassbook 时 URL 形如
+                // glassbook://phoneclaw-result?id=<uuid>
+                _ = PhoneClawClient.resolve(url: url)
+            }
             .onChange(of: scenePhase) { _, newPhase in
                 switch newPhase {
                 case .background: lock.handleBackground()

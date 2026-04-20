@@ -27,20 +27,34 @@ targets:
       # Watch companion is its own target — keep it decoupled from the iOS app
       # build so CI / machines without the watchOS SDK can still test.
       # When shipping, re-enable `embed: true` after installing watchOS 11.x.
+    # Info.plist 从 INFOPLIST_KEY_* 切到 xcodegen info: 块 — 因为 CFBundleURLTypes
+    # 是嵌套数组+字典 (CFBundleURLName/CFBundleURLSchemes), INFOPLIST_KEY_* 只认
+    # 扁平字符串, 塞不进去。所有原先走 INFOPLIST_KEY 的条目整体迁到 properties。
+    info:
+      path: Glassbook/Generated-Info.plist
+      properties:
+        UILaunchScreen: {}
+        CFBundleDisplayName: Glassbook
+        UISupportedInterfaceOrientations~iphone:
+          - UIInterfaceOrientationPortrait
+        UIStatusBarStyle: UIStatusBarStyleDarkContent
+        NSFaceIDUsageDescription: "Glassbook 使用 Face ID 保护你的财务数据。"
+        NSCameraUsageDescription: "拍摄收据以自动识别金额与商户。"
+        NSPhotoLibraryUsageDescription: "从相册选择收据截图以自动识别记账。"
+        NSSupportsLiveActivities: true
+        NSSupportsLiveActivitiesFrequentUpdates: true
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        # PhoneClaw RPC —— glassbook:// 接 x-success 回调, 并允许 canOpenURL("phoneclaw://").
+        LSApplicationQueriesSchemes:
+          - phoneclaw
+        CFBundleURLTypes:
+          - CFBundleURLName: app.glassbook.ios.callback
+            CFBundleURLSchemes:
+              - glassbook
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.glassbook.ios
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_CFBundleDisplayName: Glassbook
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
-        INFOPLIST_KEY_UIStatusBarStyle: UIStatusBarStyleDarkContent
-        INFOPLIST_KEY_NSFaceIDUsageDescription: "Glassbook 使用 Face ID 保护你的财务数据。"
-        INFOPLIST_KEY_NSCameraUsageDescription: "拍摄收据以自动识别金额与商户。"
-        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "从相册选择收据截图以自动识别记账。"
-        INFOPLIST_KEY_NSSupportsLiveActivities: YES
-        INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates: YES
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
