@@ -224,7 +224,9 @@ private struct AddAccountSheet: View {
                     let cents = (Int(balanceText) ?? 0) * 100 * (kind == .credit ? -1 : 1)
                     let acc = Account(id: UUID(), name: name.isEmpty ? kind.displayName : name,
                                       type: kind, balanceCents: cents, isPrimary: false)
-                    store.accounts.append(acc)
+                    // Persist via AppStore so SwiftData receives the insert and
+                    // the account survives restart (was lost in scaffold v1).
+                    store.addAccount(acc)
                     dismiss()
                 } label: {
                     Text("保存账户")

@@ -181,6 +181,8 @@ private struct PersonaCard: View {
 private struct ShareCard: View {
     let stats: AnnualStats
     let onDismiss: () -> Void
+    @State private var sharedPosterURL: URL?
+    @State private var isRendering = false
 
     var body: some View {
         VStack(spacing: 20) {
@@ -197,24 +199,72 @@ private struct ShareCard: View {
                 .foregroundStyle(AppColors.ink2)
                 .multilineTextAlignment(.center)
 
-            ShareLink(
-                item: Image(systemName: "photo"),
-                subject: Text("我的 Glassbook \(stats.year) 年度回顾"),
-                message: Text("#GlassbookWrapped — 我是\(stats.topPersona)!"),
-                preview: SharePreview("Glassbook Wrapped", image: Image(systemName: "star.fill"))
-            ) {
-                HStack(spacing: 8) {
-                    Image(systemName: "square.and.arrow.up")
-                    Text("分享海报").font(.system(size: 14, weight: .medium))
+            if let url = sharedPosterURL {
+                // Real rendered PNG — ShareLink picks up the file URL and
+                // presents the system sheet for AirDrop / Messages / WeChat.
+                ShareLink(
+                    item: url,
+                    subject: Text("我的 Glassbook \(stats.year) 年度回顾"),
+                    message: Text("#GlassbookWrapped — 我是\(stats.topPersona)!")
+                ) {
+                    shareButtonLabel
                 }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity, minHeight: 50)
-                .background(RoundedRectangle(cornerRadius: 14).fill(AppColors.ink))
+                .padding(.horizontal, 28)
+            } else {
+                Button {
+                    Task { await renderPoster() }
+                } label: {
+                    if isRendering {
+                        ProgressView().tint(.white)
+                            .frame(maxWidth: .infinity, minHeight: 50)
+                            .background(RoundedRectangle(cornerRadius: 14).fill(AppColors.ink))
+                    } else {
+                        shareButtonLabel
+                    }
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 28)
             }
-            .padding(.horizontal, 28)
 
             Spacer()
             Spacer()
+        }
+    }
+
+    private var shareButtonLabel: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "square.and.arrow.up")
+            Text(sharedPosterURL == nil ? "生成分享海报" : "分享海报")
+                .font(.system(size: 14, weight: .medium))
+        }
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, minHeight: 50)
+        .background(RoundedRectangle(cornerRadius: 14).fill(AppColors.ink))
+    }
+
+    /// Renders the full 1080×1920 poster (3x resolution) via ImageRenderer and
+    /// writes it to a temp file so ShareLink can hand it off.
+    @MainActor
+    private func renderPoster() async {
+        isRendering = true
+        defer { isRendering = false }
+
+        let posterView = posterThumbnail.frame(width: 360, height: 640)
+        let renderer = ImageRenderer(content: posterView)
+        renderer.scale = 3.0  // 1080 × 1920 final pixel count
+
+        guard let ui = renderer.uiImage,
+              let data = ui.pngData() else {
+            print("⚠️ AnnualWrap poster render failed")
+            return
+        }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Glassbook-Wrapped-\(stats.year).png")
+        do {
+            try data.write(to: url)
+            sharedPosterURL = url
+        } catch {
+            print("⚠️ AnnualWrap poster write failed: \(error)")
         }
     }
 

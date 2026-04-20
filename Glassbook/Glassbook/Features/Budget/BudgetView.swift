@@ -3,6 +3,7 @@ import SwiftUI
 /// Spec §4.5 · 预算管理
 struct BudgetView: View {
     @Environment(AppStore.self) private var store
+    @State private var showEdit = false
 
     var body: some View {
         ScrollView {
@@ -16,6 +17,10 @@ struct BudgetView: View {
         }
         .scrollIndicators(.hidden)
         .safeAreaPadding(.top, 8)
+        .sheet(isPresented: $showEdit) {
+            EditBudgetSheet().environment(store)
+                .presentationDetents([.large])
+        }
     }
 
     private var nav: some View {
@@ -23,9 +28,13 @@ struct BudgetView: View {
             Spacer()
             Text("预算").font(.system(size: 18, weight: .medium))
             Spacer()
-            Image(systemName: "pencil").font(.system(size: 13))
-                .frame(width: 34, height: 34)
-                .glassCard(radius: 12)
+            Button { showEdit = true } label: {
+                Image(systemName: "pencil").font(.system(size: 13))
+                    .frame(width: 34, height: 34)
+                    .glassCard(radius: 12)
+                    .foregroundStyle(AppColors.ink)
+            }
+            .buttonStyle(.plain)
         }
     }
 

@@ -95,11 +95,58 @@ final class WebhookStore {
         }
     }
 
-    /// Fire a trigger. Scaffold logs to console; production: construct a JSON payload
-    /// shaped to each platform (Slack `text`, Feishu `msg_type`) and URLSession.POST.
+    /// Fire a trigger. Real POST: each matching endpoint gets a platform-shaped
+    /// JSON body posted in the background. Network failures are logged, not
+    /// surfaced to the UI — these are best-effort notifications.
     func emit(_ trigger: Trigger, title: String, body: String) {
         for endpoint in endpoints where endpoint.enabledTriggers.contains(trigger) {
-            print("🔔 Webhook → \(endpoint.platform.displayName) [\(endpoint.name)] :: \(title) — \(body)")
+            Task.detached(priority: .utility) {
+                await Self.sendPOST(endpoint: endpoint, title: title, body: body)
+            }
+        }
+    }
+
+    private static func sendPOST(endpoint: Endpoint, title: String, body: String) async {
+        guard let url = URL(string: endpoint.url) else {
+            print("⚠️ Webhook [\(endpoint.name)] bad URL: \(endpoint.url)")
+            return
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Glassbook/1.0 (iOS)", forHTTPHeaderField: "User-Agent")
+        req.timeoutInterval = 8
+
+        let payload: [String: Any] = payloadFor(platform: endpoint.platform, title: title, body: body)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+
+        do {
+            let (_, resp) = try await URLSession.shared.data(for: req)
+            let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
+            print("🔔 Webhook → \(endpoint.platform.displayName) [\(endpoint.name)] HTTP \(code)")
+        } catch {
+            print("⚠️ Webhook [\(endpoint.name)] failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Platform-specific body shapes. Slack & Feishu each expect their own
+    /// JSON schema; n8n / custom receive a generic envelope they can adapt.
+    private static func payloadFor(platform: Endpoint.Platform,
+                                   title: String, body: String) -> [String: Any] {
+        switch platform {
+        case .slack:
+            return ["text": "*\(title)*\n\(body)"]
+        case .feishu:
+            return ["msg_type": "text", "content": ["text": "\(title)\n\(body)"]]
+        case .dingtalk:
+            return ["msgtype": "text", "text": ["content": "\(title)\n\(body)"]]
+        case .n8n, .custom:
+            return [
+                "source": "glassbook-ios",
+                "title": title,
+                "body": body,
+                "timestamp": ISO8601DateFormatter().string(from: Date()),
+            ]
         }
     }
 

@@ -39,19 +39,38 @@ final class CurrencyService {
         return Int(Double(cnyCents) / rate)
     }
 
-    /// Kick off a live refresh. Non-blocking; falls back silently to cached rates.
+    /// Kick off a live refresh. Hits exchangerate-api.com (free read-only API,
+    /// no key needed) and falls back silently to cached rates on failure.
+    /// The endpoint returns `rates[CODE] = foreign units per 1 CNY`; we
+    /// invert so our in-app rates map `CODE → CNY per 1 foreign unit`.
     func refresh() async {
-        // V2 scaffold: uses hard-coded rates. Flip to real API when deploying:
-        //
-        //   guard let url = URL(string: "https://api.exchangerate-api.com/v4/latest/CNY") else { return }
-        //   let (data, _) = try await URLSession.shared.data(from: url)
-        //   let decoded = try JSONDecoder().decode(LiveFeed.self, from: data)
-        //   ...persist...
-        //
-        // For now just refresh the timestamp so the UI shows "更新于 1 分钟前".
-        await MainActor.run {
-            snapshot.fetchedAt = .now
-            persist()
+        guard let url = URL(string: "https://api.exchangerate-api.com/v4/latest/CNY") else { return }
+        struct Feed: Codable { let rates: [String: Double]; let time_last_updated: Int? }
+
+        do {
+            let (data, resp) = try await URLSession.shared.data(from: url)
+            guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                throw URLError(.badServerResponse)
+            }
+            let feed = try JSONDecoder().decode(Feed.self, from: data)
+            var inverted: [String: Double] = ["CNY": 1.0]
+            for (code, r) in feed.rates where r > 0 && code != "CNY" {
+                inverted[code] = 1.0 / r
+            }
+            await MainActor.run {
+                // Merge rather than replace — keeps any codes the server didn't return.
+                var merged = snapshot.rates
+                for (k, v) in inverted { merged[k] = v }
+                snapshot = Snapshot(base: .cny, rates: merged, fetchedAt: .now)
+                persist()
+                print("💱 CurrencyService · refreshed \(inverted.count) rates from exchangerate-api.com")
+            }
+        } catch {
+            print("⚠️ CurrencyService refresh failed: \(error.localizedDescription) · keeping cached rates")
+            await MainActor.run {
+                snapshot.fetchedAt = .now   // record that we tried, even if it failed
+                persist()
+            }
         }
     }
 

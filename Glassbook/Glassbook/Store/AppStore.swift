@@ -329,6 +329,50 @@ final class AppStore {
         }
     }
 
+    // MARK: - Account mutations
+
+    func addAccount(_ account: Account) {
+        accounts.append(account)
+        guard let context else { return }
+        context.insert(SDAccount(from: account))
+        try? context.save()
+    }
+    func deleteAccount(id: UUID) {
+        accounts.removeAll { $0.id == id }
+        guard let context else { return }
+        let desc = FetchDescriptor<SDAccount>(predicate: #Predicate { $0.id == id })
+        for sd in (try? context.fetch(desc)) ?? [] { context.delete(sd) }
+        try? context.save()
+    }
+
+    // MARK: - Budget mutation
+
+    func updateBudget(monthlyTotalCents: Int? = nil,
+                      perCategory: [Category.Slug: Int]? = nil) {
+        if let total = monthlyTotalCents { budget.monthlyTotalCents = total }
+        if let cats = perCategory { budget.perCategory = cats }
+        guard let context else { return }
+        let desc = FetchDescriptor<SDBudget>()
+        if let sd = (try? context.fetch(desc))?.first {
+            sd.monthlyTotalCents = budget.monthlyTotalCents
+            sd.perCategoryEncoded = SDBudget.encode(budget.perCategory)
+        } else {
+            context.insert(SDBudget(from: budget))
+        }
+        try? context.save()
+    }
+
+    // MARK: - Family mutations
+
+    func addFamilyMember(_ m: FamilyMember) {
+        familyMembers.append(m)
+        // Family members are purely in-memory in this scaffold — CKShare
+        // invites would persist them to the shared CloudKit zone in production.
+    }
+    func deleteFamilyMember(id: UUID) {
+        familyMembers.removeAll { $0.id == id }
+    }
+
     // MARK: - Subscription mutations
 
     func addSubscription(_ s: Subscription) {

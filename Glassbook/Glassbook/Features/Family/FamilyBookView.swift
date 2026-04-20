@@ -6,6 +6,7 @@ import SwiftUI
 struct FamilyBookView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @State private var showAddMember = false
 
     var body: some View {
         ZStack {
@@ -14,6 +15,7 @@ struct FamilyBookView: View {
                 VStack(spacing: 14) {
                     header
                     membersCard
+                    addMemberButton
                     familyHero
                     kidsSection
                     privacyExplainer
@@ -24,6 +26,23 @@ struct FamilyBookView: View {
             }
             .scrollIndicators(.hidden)
         }
+        .sheet(isPresented: $showAddMember) {
+            AddFamilyMemberSheet().environment(store)
+                .presentationDetents([.large])
+        }
+    }
+
+    private var addMemberButton: some View {
+        Button { showAddMember = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "person.badge.plus").font(.system(size: 14))
+                Text("邀请新成员").font(.system(size: 13, weight: .medium))
+            }
+            .foregroundStyle(AppColors.ink)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .glassCard(radius: 14)
+        }
+        .buttonStyle(.plain)
     }
 
     private var header: some View {
@@ -38,7 +57,12 @@ struct FamilyBookView: View {
                 Text("家庭账本").font(.system(size: 16, weight: .medium))
             }
             .frame(maxWidth: .infinity)
-            Spacer().frame(width: 34)
+            Button { showAddMember = true } label: {
+                Image(systemName: "person.badge.plus").font(.system(size: 13))
+                    .frame(width: 34, height: 34).glassCard(radius: 12)
+                    .foregroundStyle(AppColors.ink)
+            }
+            .buttonStyle(.plain)
         }
     }
 
