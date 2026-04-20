@@ -20,6 +20,8 @@ struct ProfileView: View {
     @State private var showExport = false
     @State private var showDataManagement = false
     @State private var showLockSettings = false
+    @State private var showAbout = false
+    @State private var showWidgetHelp = false
 
     var body: some View {
         ScrollView {
@@ -43,7 +45,7 @@ struct ProfileView: View {
                 ])
 
                 menuGroup(title: "家庭", rows: [
-                    .init(icon: "house", label: "家庭账本 (深圳之家)",
+                    .init(icon: "house", label: "家庭账本 (\(store.familyGroupName))",
                           value: "\(store.familyMembers.count) 人 · " + Money.yuan(store.familyTotalThisMonthCents, showDecimals: false),
                           action: { showFamily = true }),
                 ])
@@ -55,15 +57,15 @@ struct ProfileView: View {
                     .init(icon: "target", label: "预算设置",
                           value: Money.yuan(store.budget.monthlyTotalCents, showDecimals: false),
                           action: { showBudget = true }),
-                    .init(icon: "square.grid.3x3", label: "分类管理", value: "8 个"),
                 ])
 
                 menuGroup(title: "数据", rows: [
                     .init(icon: "viewfinder", label: "智能识别",
                           value: "支付宝 · 微信 · 招行",
                           action: { showSmartImport = true }),
-                    .init(icon: "clock.arrow.circlepath", label: "历史导入", value: "可回滚 7 天"),
-                    .init(icon: "arrow.down.doc", label: "数据导出", value: "CSV / PDF"),
+                    .init(icon: "arrow.down.doc", label: "数据导出",
+                          value: "PDF · 发票",
+                          action: { showExport = true }),
                     .init(icon: "externaldrive.badge.minus", label: "清除数据 / 重置演示",
                           value: "\(store.transactions.count) 笔交易",
                           action: { showDataManagement = true }),
@@ -94,9 +96,12 @@ struct ProfileView: View {
                     .init(icon: "lock.shield", label: "Face ID 解锁",
                           value: lockStatus,
                           action: { showLockSettings = true }),
-                    .init(icon: "rectangle.on.rectangle", label: "桌面小组件", value: "长按主屏添加"),
-                    .init(icon: "paintpalette", label: "外观与主题", value: "玻璃 · 亮色"),
-                    .init(icon: "info.circle", label: "关于 Glassbook", value: "V1.2.0"),
+                    .init(icon: "rectangle.on.rectangle", label: "桌面小组件",
+                          value: "怎么添加",
+                          action: { showWidgetHelp = true }),
+                    .init(icon: "info.circle", label: "关于 Glassbook",
+                          value: appVersion,
+                          action: { showAbout = true }),
                 ])
                 Spacer().frame(height: 100)
             }
@@ -121,12 +126,19 @@ struct ProfileView: View {
         .sheet(isPresented: $showExport)        { sheet { InvoiceExportView() } }
         .sheet(isPresented: $showDataManagement) { sheet { DataManagementView() } }
         .sheet(isPresented: $showLockSettings)   { sheet { LockSettingsView() }.environment(lock) }
+        .sheet(isPresented: $showAbout)          { AboutView() }
+        .sheet(isPresented: $showWidgetHelp)     { WidgetHelpView() }
         .fullScreenCover(isPresented: $showSmartImport) {
             SmartImportFlow(isPresented: $showSmartImport)
         }
         .fullScreenCover(isPresented: $showAnnualWrap) {
             AnnualWrapView()
         }
+    }
+
+    private var appVersion: String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        return "v\(v)"
     }
 
     private var lockStatus: String {
@@ -165,7 +177,7 @@ struct ProfileView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(store.userName).font(.system(size: 16, weight: .medium))
-                Text("hello@glassbook.app").font(.system(size: 11))
+                Text("本地优先 · iCloud 同步").font(.system(size: 11))
                     .foregroundStyle(AppColors.ink3)
                 if store.isPro {
                     Text("PRO 会员")
@@ -188,12 +200,17 @@ struct ProfileView: View {
         HStack(spacing: 0) {
             stat("已记笔数", value: "\(store.transactions.count)")
             Divider().background(AppColors.glassDivider)
-            stat("连续打卡", value: "28 天")
+            stat("连续打卡", value: streakDisplay)
             Divider().background(AppColors.glassDivider)
             stat("累计存款", value: Money.yuan(store.totalSavedCents, showDecimals: false))
         }
         .padding(.vertical, 14)
         .glassCard()
+    }
+
+    private var streakDisplay: String {
+        let n = store.dailyStreak
+        return n == 0 ? "—" : "\(n) 天"
     }
 
     private func stat(_ label: String, value: String) -> some View {

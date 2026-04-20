@@ -10,7 +10,7 @@ struct InvoiceExportView: View {
     @State private var endDate: Date = .now
     @State private var selectedCats: Set<Category.Slug> = []
     @State private var titleText: String = "Glassbook · 报销明细"
-    @State private var authorText: String = "Roger Dupuis"
+    @State private var authorText: String = ""
     @State private var generatedURL: URL?
     @State private var errorMessage: String?
 
@@ -31,6 +31,9 @@ struct InvoiceExportView: View {
                 .padding(.top, 8)
             }
             .scrollIndicators(.hidden)
+        }
+        .onAppear {
+            if authorText.isEmpty { authorText = store.userName }
         }
     }
 

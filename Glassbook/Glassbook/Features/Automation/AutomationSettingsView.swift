@@ -5,14 +5,13 @@ import SwiftUI
 /// delay chips + "省时可视化" stat card.
 struct AutomationSettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppStore.self) private var store
     @AppStorage("automation.screenshotOn") private var screenshotOn = true
     @AppStorage("automation.smsOn") private var smsOn = false
     @AppStorage("automation.mcpOn") private var mcpOn = true
     @AppStorage("automation.autoSaveDelay") private var autoSaveDelay: Int = 5
-    // Demo stat — a real implementation would derive this from transactions
-    // whose `source != .manual`.
-    @AppStorage("automation.monthAutoCount") private var monthAutoCount: Int = 42
-    @AppStorage("automation.monthAutoCentsSaved") private var monthAutoCentsSaved: Int = 128_400
+    private var monthAutoCount: Int { store.autoImportedCountThisMonth }
+    private var monthAutoCentsSaved: Int { store.autoImportedCentsThisMonth }
 
     var body: some View {
         ZStack {
@@ -97,10 +96,16 @@ struct AutomationSettingsView: View {
     }
 
     private func triggerPreview() {
+        // Seed the preview with the user's most recent expense so the Live
+        // Activity looks like their real data, not stock coffee.
+        let sample = store.transactions.filter { $0.kind == .expense }.first
+        let amount = sample?.amountCents ?? 2800
+        let merchant = sample?.merchant ?? "瑞幸咖啡"
+        let emoji = sample.map { Category.by($0.categoryID).emoji } ?? "🍜"
         _ = LiveActivityService.shared.start(
-            pendingAmountCents: 2800,
-            merchant: "瑞幸咖啡",
-            categoryEmoji: "🍜",
+            pendingAmountCents: amount,
+            merchant: merchant,
+            categoryEmoji: emoji,
             autoSaveSeconds: autoSaveDelay == -1 ? 5 : max(1, autoSaveDelay),
             onAutoCommit: { _ in
                 print("🔔 Live Activity → auto-committed")
@@ -175,12 +180,21 @@ struct AutomationSettingsView: View {
     private var savingsCard: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("本月自动识别").eyebrowStyle().foregroundStyle(Color(hex: 0x8A6D1F))
-            Text("\(monthAutoCount) 笔 · \(Money.yuan(monthAutoCentsSaved, showDecimals: false))")
-                .font(.system(size: 24, weight: .medium).monospacedDigit())
-                .foregroundStyle(Color(hex: 0x8A6D1F))
-            Text("比手动记账节省约 \(monthAutoCount / 3) 分钟")
-                .font(.system(size: 10))
-                .foregroundStyle(Color(hex: 0x8A6D1F).opacity(0.85))
+            if monthAutoCount > 0 {
+                Text("\(monthAutoCount) 笔 · \(Money.yuan(monthAutoCentsSaved, showDecimals: false))")
+                    .font(.system(size: 24, weight: .medium).monospacedDigit())
+                    .foregroundStyle(Color(hex: 0x8A6D1F))
+                Text("比手动记账节省约 \(max(1, monthAutoCount / 3)) 分钟")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Color(hex: 0x8A6D1F).opacity(0.85))
+            } else {
+                Text("还没有自动识别")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Color(hex: 0x8A6D1F))
+                Text("配好快捷指令后,截屏一次就会出现在这里")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Color(hex: 0x8A6D1F).opacity(0.85))
+            }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -222,5 +236,5 @@ struct AutomationSettingsView: View {
 }
 
 #Preview {
-    AutomationSettingsView()
+    AutomationSettingsView().environment(AppStore())
 }

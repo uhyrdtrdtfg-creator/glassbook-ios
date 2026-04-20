@@ -68,7 +68,21 @@ struct ViewSmokeTests {
         _ = WebhookSettingsView()
     }
     @Test func automationSettingsBuilds() {
-        _ = AutomationSettingsView()
+        _ = AutomationSettingsView().environment(store)
+    }
+    @Test func aboutViewBuilds() {
+        _ = AboutView()
+    }
+    @Test func widgetHelpViewBuilds() {
+        _ = WidgetHelpView()
+    }
+    @Test func editPendingRowSheetBuilds() {
+        var row = PendingImportRow(
+            id: UUID(), merchant: "TEST", amountCents: 1000,
+            categoryID: .food, timestamp: .now, source: .alipay,
+            isDuplicate: false, isSelected: true, note: nil
+        )
+        _ = EditPendingRowSheet(row: Binding(get: { row }, set: { row = $0 }), onDone: {})
     }
     @Test func lockViewBuilds() {
         _ = LockView().environment(lock)
@@ -176,6 +190,87 @@ struct AppLockTests {
         lock.gracePeriodSeconds = 300
         lock.handleForeground()
         #expect(lock.isLocked == false)
+    }
+}
+
+@Suite("AppStore · streak + auto counters") @MainActor
+struct AppStoreStreakTests {
+    /// `dailyStreak` should be 0 when no transactions exist (don't invent data).
+    @Test func emptyStoreStreakIsZero() {
+        let s = AppStore()
+        s.transactions = []
+        #expect(s.dailyStreak == 0)
+    }
+
+    /// 3 consecutive days of transactions ending today → streak of 3.
+    @Test func consecutiveDaysStreak() {
+        let s = AppStore()
+        let cal = Calendar(identifier: .gregorian)
+        let now = Date()
+        s.transactions = (0...2).map { offset in
+            let d = cal.date(byAdding: .day, value: -offset, to: now)!
+            return Glassbook.Transaction(
+                id: UUID(), kind: .expense, amountCents: 100,
+                categoryID: .food, accountID: UUID(),
+                timestamp: d, merchant: "T", note: nil,
+                source: .manual, importBatchID: nil
+            )
+        }
+        #expect(s.dailyStreak == 3)
+    }
+
+    /// Gap in the middle → streak counts only the most recent contiguous run.
+    @Test func streakBreaksOnGap() {
+        let s = AppStore()
+        let cal = Calendar(identifier: .gregorian)
+        let now = Date()
+        let todayTx = Glassbook.Transaction(
+            id: UUID(), kind: .expense, amountCents: 100,
+            categoryID: .food, accountID: UUID(),
+            timestamp: now, merchant: "T", note: nil,
+            source: .manual, importBatchID: nil
+        )
+        let fiveDaysAgo = cal.date(byAdding: .day, value: -5, to: now)!
+        let oldTx = Glassbook.Transaction(
+            id: UUID(), kind: .expense, amountCents: 100,
+            categoryID: .food, accountID: UUID(),
+            timestamp: fiveDaysAgo, merchant: "T", note: nil,
+            source: .manual, importBatchID: nil
+        )
+        s.transactions = [todayTx, oldTx]
+        #expect(s.dailyStreak == 1)
+    }
+
+    /// `autoImportedCountThisMonth` only counts non-manual sources.
+    @Test func autoImportedExcludesManual() {
+        let s = AppStore()
+        let now = Date()
+        s.transactions = [
+            Glassbook.Transaction(id: UUID(), kind: .expense, amountCents: 100,
+                categoryID: .food, accountID: UUID(),
+                timestamp: now, merchant: "T", note: nil,
+                source: .manual, importBatchID: nil),
+            Glassbook.Transaction(id: UUID(), kind: .expense, amountCents: 200,
+                categoryID: .food, accountID: UUID(),
+                timestamp: now, merchant: "T", note: nil,
+                source: .alipay, importBatchID: nil),
+            Glassbook.Transaction(id: UUID(), kind: .expense, amountCents: 300,
+                categoryID: .food, accountID: UUID(),
+                timestamp: now, merchant: "T", note: nil,
+                source: .wechat, importBatchID: nil),
+        ]
+        #expect(s.autoImportedCountThisMonth == 2)
+        #expect(s.autoImportedCentsThisMonth == 500)
+    }
+
+    /// Family group name defaults and round-trips through UserDefaults.
+    @Test func familyGroupNamePersists() {
+        let s = AppStore()
+        UserDefaults.standard.removeObject(forKey: "family.groupName")
+        #expect(s.familyGroupName == "我的家")
+        s.familyGroupName = "深圳小窝"
+        #expect(AppStore().familyGroupName == "深圳小窝")
+        UserDefaults.standard.removeObject(forKey: "family.groupName")
     }
 }
 

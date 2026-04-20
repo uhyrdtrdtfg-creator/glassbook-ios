@@ -127,6 +127,49 @@ final class AppStore {
             .reduce(0) { $0 + $1.amountCents }
     }
 
+    /// Family group name — user can rename in FamilyBookView. Persisted to
+    /// UserDefaults so it survives relaunch.
+    var familyGroupName: String {
+        get { UserDefaults.standard.string(forKey: "family.groupName") ?? "我的家" }
+        set { UserDefaults.standard.set(newValue, forKey: "family.groupName") }
+    }
+
+    /// Spec §4.6 · 连续打卡 — consecutive days (counting back from today) that
+    /// had ≥ 1 transaction logged. If today has no entries yet, counts back
+    /// from yesterday instead (so the streak doesn't reset at 00:00).
+    var dailyStreak: Int {
+        guard !transactions.isEmpty else { return 0 }
+        let cal = Calendar(identifier: .gregorian)
+        let daysWithTx: Set<DateComponents> = Set(transactions.map {
+            cal.dateComponents([.year, .month, .day], from: $0.timestamp)
+        })
+        let startsToday = daysWithTx.contains(
+            cal.dateComponents([.year, .month, .day], from: Date())
+        )
+        var cursor = Date()
+        if !startsToday { cursor = cal.date(byAdding: .day, value: -1, to: cursor) ?? cursor }
+        var streak = 0
+        while true {
+            let dc = cal.dateComponents([.year, .month, .day], from: cursor)
+            if daysWithTx.contains(dc) {
+                streak += 1
+                cursor = cal.date(byAdding: .day, value: -1, to: cursor) ?? cursor
+            } else { break }
+        }
+        return streak
+    }
+
+    /// Auto-import counters for AutomationSettingsView — any transaction in the
+    /// current month whose source isn't manual (OCR / AppIntent / MCP etc.).
+    var autoImportedCountThisMonth: Int {
+        transactionsInMonth(Date()).filter { $0.source != .manual }.count
+    }
+    var autoImportedCentsThisMonth: Int {
+        transactionsInMonth(Date())
+            .filter { $0.source != .manual && $0.kind == .expense }
+            .reduce(0) { $0 + $1.amountCents }
+    }
+
     // MARK: - Queries
 
     func transactionsInMonth(_ date: Date) -> [Transaction] {
