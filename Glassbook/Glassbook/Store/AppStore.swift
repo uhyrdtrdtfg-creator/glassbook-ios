@@ -12,8 +12,17 @@ final class AppStore {
     var goals: [SavingsGoal] = []
     var familyMembers: [FamilyMember] = SampleData.familyMembers
     var budget: Budget = .default
-    var userName: String = "Roger"
-    var userInitial: String = "R"
+    /// Persisted to UserDefaults so user name survives relaunch. Stored var
+    /// (not computed) so @Observable tracks changes and ProfileView re-renders.
+    var userName: String = UserDefaults.standard.string(forKey: "user.name") ?? "Roger" {
+        didSet {
+            let trimmed = userName.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty { userName = "Roger"; return }
+            UserDefaults.standard.set(userName, forKey: "user.name")
+        }
+    }
+    /// Auto-derived from `userName`'s first char (uppercased).
+    var userInitial: String { String(userName.prefix(1)).uppercased() }
     var isPro: Bool = true
 
     private let context: ModelContext?
@@ -252,20 +261,27 @@ final class AppStore {
 
     /// Edit an existing transaction. Writes through to SwiftData so changes
     /// survive relaunch + sync to CloudKit. The struct is value-type so we
-    /// rebuild the in-memory entry + persist.
+    /// rebuild the in-memory entry + persist. Any param left nil is skipped;
+    /// pass ONLY the fields the user actually changed.
     func updateTransaction(id: UUID,
+                           kind: Transaction.Kind? = nil,
                            merchant: String? = nil,
                            amountCents: Int? = nil,
                            category: Category.Slug? = nil,
                            timestamp: Date? = nil,
-                           note: String? = nil) {
+                           note: String? = nil,
+                           mood: Mood?? = nil,
+                           visibility: Visibility? = nil) {
         guard let idx = transactions.firstIndex(where: { $0.id == id }) else { return }
         var tx = transactions[idx]
+        if let k = kind { tx.kind = k }
         if let m = merchant, !m.trimmingCharacters(in: .whitespaces).isEmpty { tx.merchant = m }
         if let c = amountCents, c > 0 { tx.amountCents = c }
         if let cat = category { tx.categoryID = cat }
         if let t = timestamp { tx.timestamp = t }
         if let n = note { tx.note = n.isEmpty ? nil : n }
+        if let m = mood { tx.mood = m }              // double optional: nil means "don't touch", .some(nil) means "clear"
+        if let v = visibility { tx.visibility = v }
         transactions[idx] = tx
         // re-sort so a date edit doesn't leave the row in the wrong place
         transactions.sort { $0.timestamp > $1.timestamp }
@@ -273,11 +289,14 @@ final class AppStore {
         guard let context else { return }
         let desc = FetchDescriptor<SDTransaction>(predicate: #Predicate { $0.id == id })
         if let sd = (try? context.fetch(desc))?.first {
+            sd.kindRaw = tx.kind.rawValue
             sd.merchant = tx.merchant
             sd.amountCents = tx.amountCents
             sd.categoryRaw = tx.categoryID.rawValue
             sd.timestamp = tx.timestamp
             sd.note = tx.note
+            sd.moodRaw = tx.mood?.rawValue
+            sd.visibilityRaw = tx.visibility.rawValue
             try? context.save()
         }
     }
@@ -290,10 +309,11 @@ final class AppStore {
         let selected = rows.filter(\.isSelected)
         let mapped: [Transaction] = selected.map { row in
             Transaction(
-                id: UUID(), kind: .expense, amountCents: row.amountCents,
+                id: UUID(), kind: row.kind, amountCents: row.amountCents,
                 categoryID: row.categoryID, accountID: primaryAccountID,
-                timestamp: row.timestamp, merchant: row.merchant, note: nil,
-                source: Self.source(for: platform), importBatchID: batchID
+                timestamp: row.timestamp, merchant: row.merchant, note: row.note,
+                source: Self.source(for: platform), importBatchID: batchID,
+                mood: row.mood, visibility: row.visibility
             )
         }
         for tx in mapped {

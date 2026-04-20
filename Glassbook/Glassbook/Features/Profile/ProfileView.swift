@@ -22,6 +22,7 @@ struct ProfileView: View {
     @State private var showLockSettings = false
     @State private var showAbout = false
     @State private var showWidgetHelp = false
+    @State private var showEditProfile = false
 
     var body: some View {
         ScrollView {
@@ -128,6 +129,7 @@ struct ProfileView: View {
         .sheet(isPresented: $showLockSettings)   { sheet { LockSettingsView() }.environment(lock) }
         .sheet(isPresented: $showAbout)          { AboutView() }
         .sheet(isPresented: $showWidgetHelp)     { WidgetHelpView() }
+        .sheet(isPresented: $showEditProfile)    { sheet { EditProfileSheet() } }
         .fullScreenCover(isPresented: $showSmartImport) {
             SmartImportFlow(isPresented: $showSmartImport)
         }
@@ -164,35 +166,40 @@ struct ProfileView: View {
     }
 
     private var profileCard: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle().fill(LinearGradient(
-                    colors: [AppColors.auroraPink, AppColors.auroraPurple],
-                    startPoint: .topLeading, endPoint: .bottomTrailing))
-                Text(store.userInitial)
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 56, height: 56)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(store.userName).font(.system(size: 16, weight: .medium))
-                Text("本地优先 · iCloud 同步").font(.system(size: 11))
-                    .foregroundStyle(AppColors.ink3)
-                if store.isPro {
-                    Text("PRO 会员")
-                        .font(.system(size: 10)).tracking(0.8)
+        Button { showEditProfile = true } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle().fill(LinearGradient(
+                        colors: [AppColors.auroraPink, AppColors.auroraPurple],
+                        startPoint: .topLeading, endPoint: .bottomTrailing))
+                    Text(store.userInitial)
+                        .font(.system(size: 22, weight: .medium))
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 10).padding(.vertical, 3)
-                        .background(Capsule().fill(LinearGradient.brand()))
                 }
+                .frame(width: 56, height: 56)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(store.userName).font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(AppColors.ink)
+                    Text("点这里改昵称 / 家庭名").font(.system(size: 11))
+                        .foregroundStyle(AppColors.ink3)
+                    if store.isPro {
+                        Text("PRO 会员")
+                            .font(.system(size: 10)).tracking(0.8)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10).padding(.vertical, 3)
+                            .background(Capsule().fill(LinearGradient.brand()))
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppColors.ink4)
             }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12))
-                .foregroundStyle(AppColors.ink4)
+            .padding(22)
+            .contentShape(Rectangle())
         }
-        .padding(22)
+        .buttonStyle(.plain)
         .glassCard()
     }
 

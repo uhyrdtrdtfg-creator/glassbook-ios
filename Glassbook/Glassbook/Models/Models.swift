@@ -362,4 +362,11 @@ struct PendingImportRow: Identifiable, Hashable {
     /// Free-form annotations carried over from OCR (e.g. CMB "未入账" status
     /// chip, platform flags). Shown as a subtitle on the confirm screen.
     var note: String? = nil
+    /// Defaults to expense but can flip in the edit sheet when user realizes
+    /// it's actually a refund / income transfer.
+    var kind: Transaction.Kind = .expense
+    /// Mood + visibility let the edit-row sheet match the "新增" form without
+    /// losing user choices when the row is committed into a Transaction.
+    var mood: Mood? = nil
+    var visibility: Visibility = .family
 }

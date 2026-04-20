@@ -1,199 +1,61 @@
 import SwiftUI
 
-/// Edit an already-committed transaction. Same shape as the smart-import
-/// EditPendingRowSheet but writes through `AppStore.updateTransaction` so
-/// changes survive relaunch + sync to CloudKit.
+/// Edit a committed transaction using the SAME rich form as "新增记一笔"
+/// (kind / keypad / visibility / category / mood / merchant+note / date).
+/// Under the hood calls `AppStore.updateTransaction` so changes flow to
+/// SwiftData + CloudKit.
 struct EditTransactionSheet: View {
     let txID: UUID
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-
-    @State private var merchant: String = ""
-    @State private var amountText: String = ""
-    @State private var selectedCat: Category.Slug = .other
-    @State private var date: Date = .now
-    @State private var note: String = ""
-    @State private var initialized: Bool = false
 
     private var currentTx: Transaction? {
         store.transactions.first(where: { $0.id == txID })
     }
 
     var body: some View {
-        ZStack {
-            AuroraBackground(palette: .add)
-            ScrollView {
-                VStack(spacing: 14) {
-                    header
-                    merchantCard
-                    amountCard
-                    categoryCard
-                    dateCard
-                    noteCard
-                    Spacer().frame(height: 18)
-                    saveButton
-                    deleteButton
-                    Spacer().frame(height: 40)
-                }
-                .padding(.horizontal, 18).padding(.top, 8)
-            }
-            .scrollIndicators(.hidden)
-        }
-        .onAppear {
-            guard !initialized, let tx = currentTx else { return }
-            merchant = tx.merchant
-            amountText = String(format: "%.2f", Double(tx.amountCents) / 100.0)
-            selectedCat = tx.categoryID
-            date = tx.timestamp
-            note = tx.note ?? ""
-            initialized = true
-        }
-    }
-
-    private var header: some View {
-        HStack {
-            Button { dismiss() } label: {
-                Image(systemName: "xmark").font(.system(size: 13))
-                    .frame(width: 34, height: 34).glassCard(radius: 12)
-                    .foregroundStyle(AppColors.ink)
-            }
-            Spacer()
-            Text("编辑账单").font(.system(size: 16, weight: .medium))
-            Spacer()
-            Spacer().frame(width: 34)
-        }
-    }
-
-    private var merchantCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("商户").eyebrowStyle()
-            TextField("例如:瑞幸咖啡", text: $merchant)
-                .font(.system(size: 14))
-                .padding(.vertical, 10).padding(.horizontal, 12)
-                .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.55)))
-        }
-        .padding(14)
-        .glassCard()
-    }
-
-    private var amountCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("金额").eyebrowStyle()
-            HStack(spacing: 6) {
-                Text("¥").font(.system(size: 22, weight: .light))
-                    .foregroundStyle(AppColors.ink2)
-                TextField("0.00", text: $amountText)
-                    .keyboardType(.decimalPad)
-                    .font(.system(size: 24, weight: .light).monospacedDigit())
-            }
-            .padding(.vertical, 10).padding(.horizontal, 12)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.55)))
-        }
-        .padding(14)
-        .glassCard()
-    }
-
-    private var categoryCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("分类").eyebrowStyle()
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
-                ForEach(Category.all, id: \.id) { cat in
-                    Button { selectedCat = cat.id } label: {
-                        VStack(spacing: 4) {
-                            Text(cat.emoji).font(.system(size: 18))
-                            Text(cat.name).font(.system(size: 9))
-                                .foregroundStyle(selectedCat == cat.id ? AppColors.ink : AppColors.ink2)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .aspectRatio(1.1, contentMode: .fit)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(selectedCat == cat.id ? Color.white.opacity(0.75) : Color.white.opacity(0.25))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(selectedCat == cat.id ? AppColors.ink : Color.clear, lineWidth: 1.2)
-                        )
+        if let tx = currentTx {
+            RichTxFormView(
+                title: "编辑账单",
+                saveLabel: "保存",
+                initial: .init(
+                    kind: tx.kind,
+                    amountCents: tx.amountCents,
+                    categoryID: tx.categoryID,
+                    merchant: tx.merchant,
+                    note: tx.note ?? "",
+                    mood: tx.mood,
+                    visibility: tx.visibility,
+                    timestamp: tx.timestamp
+                ),
+                showDatePicker: true,
+                destructiveAction: (
+                    label: "删除这笔",
+                    handler: {
+                        store.delete(txID)
+                        dismiss()
                     }
-                    .buttonStyle(.plain)
+                ),
+                onCancel: { dismiss() },
+                onSave: { v in
+                    store.updateTransaction(
+                        id: txID,
+                        kind: v.kind,
+                        merchant: v.merchant,
+                        amountCents: v.amountCents,
+                        category: v.categoryID,
+                        timestamp: v.timestamp,
+                        note: v.note,
+                        mood: .some(v.mood),
+                        visibility: v.visibility
+                    )
+                    dismiss()
                 }
-            }
-        }
-        .padding(14)
-        .glassCard()
-    }
-
-    private var dateCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("时间").eyebrowStyle()
-            DatePicker("", selection: $date, displayedComponents: [.date, .hourAndMinute])
-                .datePickerStyle(.compact)
-                .labelsHidden()
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(14)
-        .glassCard()
-    }
-
-    private var noteCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("备注").eyebrowStyle()
-            TextField("可选", text: $note)
-                .font(.system(size: 13))
-                .padding(.vertical, 10).padding(.horizontal, 12)
-                .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.55)))
-        }
-        .padding(14)
-        .glassCard()
-    }
-
-    private var saveButton: some View {
-        Button {
-            let trimmed = merchant.trimmingCharacters(in: .whitespaces)
-            let cents = parseCents(amountText)
-            store.updateTransaction(
-                id: txID,
-                merchant: trimmed.isEmpty ? nil : trimmed,
-                amountCents: cents,
-                category: selectedCat,
-                timestamp: date,
-                note: note
             )
-            dismiss()
-        } label: {
-            Text("保存")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity, minHeight: 48)
-                .background(RoundedRectangle(cornerRadius: 14).fill(AppColors.ink))
+        } else {
+            Text("找不到这笔账单").font(.system(size: 13))
+                .foregroundStyle(AppColors.ink3)
+                .padding()
         }
-        .buttonStyle(.plain)
-        .disabled(!isValid)
-        .opacity(isValid ? 1 : 0.5)
-    }
-
-    private var deleteButton: some View {
-        Button(role: .destructive) {
-            store.delete(txID)
-            dismiss()
-        } label: {
-            Text("删除这笔")
-                .font(.system(size: 13))
-                .foregroundStyle(AppColors.expenseRed)
-                .frame(maxWidth: .infinity, minHeight: 40)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var isValid: Bool {
-        guard !merchant.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
-        guard let c = parseCents(amountText), c > 0 else { return false }
-        return true
-    }
-
-    private func parseCents(_ s: String) -> Int? {
-        let clean = s.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "")
-        guard let d = Double(clean) else { return nil }
-        return Int((d * 100).rounded())
     }
 }

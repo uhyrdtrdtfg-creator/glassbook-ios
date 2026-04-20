@@ -810,163 +810,43 @@ struct SmartImportConfirmScreen: View {
 
 // MARK: - Edit sheet · 改识别结果
 
-/// Lets the user correct OCR slips (商户名多了个空格 / 分类猜错了 / 金额漏了一位 /
-/// 时间错天) before committing to AppStore. Mutates the binding in place —
-/// SmartImportConfirmScreen re-reads totals + checkbox state automatically.
+/// Lets the user correct OCR slips using the SAME form as "新增记一笔"
+/// (kind / keypad / visibility / category / mood / merchant+note / date).
+/// Writes back into the @Binding — SmartImportConfirmScreen re-reads totals
+/// + checkbox state automatically.
 struct EditPendingRowSheet: View {
     @Binding var row: PendingImportRow
     var onDone: () -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var merchant: String = ""
-    @State private var amountText: String = ""
-    @State private var selectedCat: Category.Slug = .food
-    @State private var date: Date = .now
 
     var body: some View {
-        ZStack {
-            AuroraBackground(palette: .add)
-            ScrollView {
-                VStack(spacing: 14) {
-                    header
-                    merchantCard
-                    amountCard
-                    categoryCard
-                    dateCard
-                    Spacer().frame(height: 20)
-                    saveButton
-                    Spacer().frame(height: 40)
-                }
-                .padding(.horizontal, 18).padding(.top, 8)
+        RichTxFormView(
+            title: "编辑识别结果",
+            saveLabel: "保存",
+            initial: .init(
+                kind: row.kind,
+                amountCents: row.amountCents,
+                categoryID: row.categoryID,
+                merchant: row.merchant,
+                note: row.note ?? "",
+                mood: row.mood,
+                visibility: row.visibility,
+                timestamp: row.timestamp
+            ),
+            showDatePicker: true,
+            onCancel: { onDone() },
+            onSave: { v in
+                row.kind = v.kind
+                row.amountCents = v.amountCents
+                row.categoryID = v.categoryID
+                let trimmed = v.merchant.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty { row.merchant = trimmed }
+                row.note = v.note.isEmpty ? nil : v.note
+                row.mood = v.mood
+                row.visibility = v.visibility
+                row.timestamp = v.timestamp
+                onDone()
             }
-            .scrollIndicators(.hidden)
-        }
-        .onAppear {
-            merchant = row.merchant
-            amountText = String(format: "%.2f", Double(row.amountCents) / 100.0)
-            selectedCat = row.categoryID
-            date = row.timestamp
-        }
-    }
-
-    private var header: some View {
-        HStack {
-            Button {
-                dismiss(); onDone()
-            } label: {
-                Image(systemName: "xmark").font(.system(size: 13))
-                    .frame(width: 34, height: 34)
-                    .glassCard(radius: 12)
-                    .foregroundStyle(AppColors.ink)
-            }
-            Spacer()
-            Text("编辑识别结果").font(.system(size: 16, weight: .medium))
-            Spacer()
-            Spacer().frame(width: 34)
-        }
-    }
-
-    private var merchantCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("商户").eyebrowStyle()
-            TextField("例如:瑞幸咖啡", text: $merchant)
-                .font(.system(size: 14))
-                .padding(.vertical, 10).padding(.horizontal, 12)
-                .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.55)))
-        }
-        .padding(14)
-        .glassCard()
-    }
-
-    private var amountCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("金额").eyebrowStyle()
-            HStack(spacing: 6) {
-                Text("¥").font(.system(size: 22, weight: .light))
-                    .foregroundStyle(AppColors.ink2)
-                TextField("0.00", text: $amountText)
-                    .keyboardType(.decimalPad)
-                    .font(.system(size: 24, weight: .light).monospacedDigit())
-            }
-            .padding(.vertical, 10).padding(.horizontal, 12)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.55)))
-        }
-        .padding(14)
-        .glassCard()
-    }
-
-    private var categoryCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("分类").eyebrowStyle()
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
-                ForEach(Category.all, id: \.id) { cat in
-                    Button { selectedCat = cat.id } label: {
-                        VStack(spacing: 4) {
-                            Text(cat.emoji).font(.system(size: 18))
-                            Text(cat.name).font(.system(size: 9))
-                                .foregroundStyle(selectedCat == cat.id ? AppColors.ink : AppColors.ink2)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .aspectRatio(1.1, contentMode: .fit)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(selectedCat == cat.id ? Color.white.opacity(0.75) : Color.white.opacity(0.25))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(selectedCat == cat.id ? AppColors.ink : Color.clear, lineWidth: 1.2)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        .padding(14)
-        .glassCard()
-    }
-
-    private var dateCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("时间").eyebrowStyle()
-            DatePicker("", selection: $date, displayedComponents: [.date, .hourAndMinute])
-                .datePickerStyle(.compact)
-                .labelsHidden()
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(14)
-        .glassCard()
-    }
-
-    private var saveButton: some View {
-        Button {
-            row.merchant = merchant.trimmingCharacters(in: .whitespaces).isEmpty ? row.merchant
-                : merchant.trimmingCharacters(in: .whitespaces)
-            if let cents = parseCents(amountText) { row.amountCents = cents }
-            row.categoryID = selectedCat
-            row.timestamp = date
-            dismiss(); onDone()
-        } label: {
-            Text("保存改动")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity, minHeight: 48)
-                .background(RoundedRectangle(cornerRadius: 14).fill(AppColors.ink))
-        }
-        .buttonStyle(.plain)
-        .disabled(!hasValidChanges)
-        .opacity(hasValidChanges ? 1 : 0.5)
-    }
-
-    private var hasValidChanges: Bool {
-        guard !merchant.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
-        guard let cents = parseCents(amountText), cents > 0 else { return false }
-        return true
-    }
-
-    private func parseCents(_ s: String) -> Int? {
-        let clean = s.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "")
-        guard let d = Double(clean) else { return nil }
-        return Int((d * 100).rounded())
+        )
     }
 }
 
