@@ -181,8 +181,9 @@ struct AddTransactionView: View {
                     .foregroundStyle(AppColors.ink)
                 Rectangle()
                     .fill(AppColors.brandStart)
-                    .frame(width: 2, height: 42)
+                    .frame(width: 2, height: 38)
                     .opacity(cursorBlink ? 1 : 0)
+                    .padding(.top, 10)
             }
         }
         .padding(.vertical, 22).padding(.horizontal, 20)
