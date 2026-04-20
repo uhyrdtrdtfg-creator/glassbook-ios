@@ -9,6 +9,11 @@ struct AIEngineSettingsView: View {
     @Bindable private var store = AIEngineStore.shared
     @State private var selectedForDetail: AIEngineStore.Engine?
 
+    // PhoneClaw 自检状态 — 按测试按钮后更新, 成功/失败都回显在卡片里.
+    @State private var phoneClawTesting: Bool = false
+    @State private var phoneClawTestLog: String = ""
+    @State private var phoneClawTestIsError: Bool = false
+
     var body: some View {
         ZStack {
             AuroraBackground(palette: .stats)
@@ -86,35 +91,144 @@ struct AIEngineSettingsView: View {
     /// 第二张本地卡 — 走 phoneclaw:// URL scheme + group.app.glassbook.ios,
     /// Glassbook 这边不抱 MLX 依赖,模型在 PhoneClaw 那边跑完写回 App Group,
     /// 延迟 5-10 秒冷启, 之后同进程秒回。
+    /// 带一个"测试连接"按钮 — 问 PhoneClaw 一句最短 prompt, 把成功答复或
+    /// 具体错误信息回显在下面的 log 区域, 方便定位 Bundle ID / App Group /
+    /// URL scheme 哪一环没配对.
     private var phoneClawCard: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(hex: AIEngineStore.Engine.phoneclaw.tintHex))
-                Text("🦾").font(.system(size: 18))
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(hex: AIEngineStore.Engine.phoneclaw.tintHex))
+                    Text("🦾").font(.system(size: 18))
+                }
+                .frame(width: 40, height: 40)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("PhoneClaw (本地 Gemma 4)")
+                        .font(.system(size: 13, weight: .medium))
+                    Text("跨 App · 离线推理 · 需装 PhoneClaw")
+                        .font(.system(size: 10))
+                        .foregroundStyle(AppColors.ink3)
+                }
+                Spacer()
+                if store.selected == .phoneclaw {
+                    Text("当前").font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Capsule().fill(AppColors.incomeGreen))
+                } else {
+                    Button("切换") { store.selectEngine(.phoneclaw) }
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(AppColors.ink)
+                }
             }
-            .frame(width: 40, height: 40)
-            VStack(alignment: .leading, spacing: 3) {
-                Text("PhoneClaw (本地 Gemma 4)")
-                    .font(.system(size: 13, weight: .medium))
-                Text("跨 App · 离线推理 · 需装 PhoneClaw")
-                    .font(.system(size: 10))
-                    .foregroundStyle(AppColors.ink3)
-            }
-            Spacer()
-            if store.selected == .phoneclaw {
-                Text("当前").font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(Capsule().fill(AppColors.incomeGreen))
-            } else {
-                Button("切换") { store.selectEngine(.phoneclaw) }
-                    .font(.system(size: 11, weight: .medium))
+
+            HStack(spacing: 8) {
+                Button {
+                    Task { await runPhoneClawTest() }
+                } label: {
+                    HStack(spacing: 6) {
+                        if phoneClawTesting {
+                            ProgressView().controlSize(.mini)
+                        } else {
+                            Image(systemName: "wrench.adjustable")
+                                .font(.system(size: 10))
+                        }
+                        Text(phoneClawTesting ? "测试中…" : "测试连接")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(Capsule().fill(AppColors.ink.opacity(0.08)))
                     .foregroundStyle(AppColors.ink)
+                }
+                .disabled(phoneClawTesting)
+                .buttonStyle(.plain)
+
+                Spacer()
+            }
+
+            if !phoneClawTestLog.isEmpty {
+                Text(phoneClawTestLog)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(phoneClawTestIsError ? Color.red : AppColors.incomeGreen)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(AppColors.ink.opacity(0.04))
+                    )
+                    .textSelection(.enabled)
             }
         }
         .padding(16)
         .glassCard()
+    }
+
+    // MARK: - PhoneClaw self-test
+    //
+    // 串行跑三道检查, 任何一道断了就把错误贴在卡片里:
+    //   1) App Group 容器是否拿得到 (entitlements + 开发者后台 App Group 注册)
+    //   2) canOpenURL("phoneclaw://") 是否通过 (Bundle ID 对 + PhoneClaw 装了
+    //      + LSApplicationQueriesSchemes 声明了 phoneclaw)
+    //   3) 完整 RPC 回路 (写 req → open phoneclaw:// → PhoneClaw 跑模型 →
+    //      写 res → open glassbook:// callback → 解码 res)
+    //
+    // 用 12 秒超时 (而不是默认 60) — 仅 ping 级别的交互, 等不到说明链路断了
+    // 就该停下让用户看错误, 不要让用户干等.
+    @MainActor
+    private func runPhoneClawTest() async {
+        phoneClawTesting = true
+        phoneClawTestLog = ""
+        phoneClawTestIsError = false
+        defer { phoneClawTesting = false }
+
+        var log: [String] = []
+
+        // 1) App Group
+        if let container = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: PhoneClawClient.appGroup) {
+            log.append("✓ App Group 容器 OK")
+            log.append("  \(container.path)")
+        } else {
+            log.append("✗ App Group 容器返回 nil")
+            log.append("  检查:entitlements 里的 group.app.glassbook.ios,")
+            log.append("  以及 developer.apple.com → Identifiers → App Groups")
+            log.append("  已注册 group.app.glassbook.ios,且两个 App ID 都勾上了它")
+            phoneClawTestLog = log.joined(separator: "\n")
+            phoneClawTestIsError = true
+            return
+        }
+
+        // 2) URL scheme
+        if let url = URL(string: "phoneclaw://ask"),
+           UIApplication.shared.canOpenURL(url) {
+            log.append("✓ phoneclaw:// URL scheme 可响应")
+        } else {
+            log.append("✗ phoneclaw:// 无响应")
+            log.append("  PhoneClaw 没装,或 Bundle ID 还是 com.example.phoneclaw 没改过来")
+            phoneClawTestLog = log.joined(separator: "\n")
+            phoneClawTestIsError = true
+            return
+        }
+
+        // 3) 完整 RPC 回路
+        log.append("→ 正在请求 PhoneClaw…")
+        phoneClawTestLog = log.joined(separator: "\n")
+
+        do {
+            let answer = try await PhoneClawClient.ask(
+                prompt: "用一个字回答:你好吗",
+                timeout: 45
+            )
+            let snippet = answer.isEmpty ? "(空响应)" : String(answer.prefix(120))
+            log.append("✓ 收到回答:\(snippet)")
+            phoneClawTestLog = log.joined(separator: "\n")
+            phoneClawTestIsError = false
+        } catch {
+            log.append("✗ \(error.localizedDescription)")
+            phoneClawTestLog = log.joined(separator: "\n")
+            phoneClawTestIsError = true
+        }
     }
 
     private func engineRow(_ engine: AIEngineStore.Engine) -> some View {

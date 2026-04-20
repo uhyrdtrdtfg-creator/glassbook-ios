@@ -26,19 +26,22 @@ enum PhoneClawClient {
         case launchFailed
         case remoteError(String)
         case malformedResponse
+        case timedOut(seconds: Int)
 
         var errorDescription: String? {
             switch self {
             case .groupContainerUnavailable:
-                return "App Group 共享容器不可用，请确认 entitlements 里有 group.app.glassbook.ios"
+                return "App Group 共享容器不可用,请确认 entitlements 里有 group.app.glassbook.ios,并且该 Group 已在 developer.apple.com 注册"
             case .phoneclawNotInstalled:
-                return "检测不到 PhoneClaw,请先在本机安装"
+                return "检测不到 PhoneClaw,请先在本机安装(Bundle ID 必须是 app.glassbook.phoneclaw)"
             case .launchFailed:
                 return "无法唤起 PhoneClaw"
             case .remoteError(let message):
                 return "PhoneClaw 返回错误:\(message)"
             case .malformedResponse:
                 return "PhoneClaw 响应格式异常"
+            case .timedOut(let seconds):
+                return "等待 PhoneClaw 回调超时(\(seconds)s). 可能原因: 1)PhoneClaw 没装或 Bundle ID 没改 2)App Group 没在开发者后台开启 3)模型还在首次冷加载 4)PhoneClaw 没实现 phoneclaw:// URL handler"
             }
         }
     }
@@ -62,8 +65,12 @@ enum PhoneClawClient {
     /// Ask PhoneClaw a question and await the answer. Suspends until PhoneClaw
     /// opens the `glassbook://phoneclaw-result?id=<id>` callback and the host
     /// app's `.onOpenURL` routes it back here via `resolve(url:)`.
+    ///
+    /// `timeout` defaults to 60 s — enough headroom for PhoneClaw's cold-start
+    /// model load (~5-10 s) plus a short generation. Caller-facing test paths
+    /// pass smaller values to surface "didn't come back at all" fast.
     @MainActor
-    static func ask(prompt: String) async throws -> String {
+    static func ask(prompt: String, timeout: TimeInterval = 60) async throws -> String {
         guard let container = FileManager.default
             .containerURL(forSecurityApplicationGroupIdentifier: appGroup) else {
             throw ClientError.groupContainerUnavailable
@@ -97,6 +104,15 @@ enum PhoneClawClient {
                 if !ok {
                     Self.fail(id: id, error: .launchFailed)
                 }
+            }
+            // Timeout guard — if PhoneClaw never fires the callback URL (not
+            // installed / bundle id wrong / URL handler missing) the
+            // continuation would leak and the caller UI would just spin.
+            // Whichever resolves first (response or timeout) pops `pending[id]`,
+            // the loser's fail(id:) is a no-op on a nil continuation.
+            Task.detached {
+                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                Self.fail(id: id, error: .timedOut(seconds: Int(timeout)))
             }
         }
     }
