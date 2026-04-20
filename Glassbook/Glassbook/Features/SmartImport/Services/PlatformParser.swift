@@ -32,6 +32,11 @@ enum ParserKit {
     /// be fed to `extractAmountCents`. Real bill screenshots pack lots of
     /// digits into these labels (signal bar "21:19", card "信用卡1440 12:27",
     /// "4月19日 18:25", …) which otherwise get misread as ¥ amounts.
+    /// `looksLikeDateOrTime` is called from BOTH the parser line-scan (to skip
+    /// date-header rows) AND from `extractAmountCents` (to reject amounts
+    /// masquerading as dates). The two callers have different tolerances:
+    /// "1.01" must parse as ¥1.01 for money, but "4.17" must skip as date
+    /// header for CMB. Hence two sibling functions.
     static func looksLikeDateOrTime(_ text: String) -> Bool {
         let t = text.trimmingCharacters(in: .whitespaces)
         if t.isEmpty { return false }
@@ -62,8 +67,32 @@ enum ParserKit {
     /// when a parser scans forward looking for the amount line.
     static func looksLikeStatusChip(_ text: String) -> Bool {
         let t = text.trimmingCharacters(in: .whitespaces)
-        let chips = ["未入账", "已入账", "待收货", "已完成", "待付款", "已退款"]
+        let chips: Set<String> = [
+            "未入账", "已入账", "待收货", "已完成", "待付款", "已退款",
+            "分期", "分期付款", "待授权", "已授权", "交易成功", "支付成功",
+            "已冲正", "退款", "转账", "收款", "付款", "账单日",
+        ]
         return chips.contains(t)
+    }
+
+    /// CMB credit-card / debit-card tag lines like "信用卡1440 12:27",
+    /// "储蓄卡1756 10:31". They sit between the transaction amount and
+    /// the balance line, often confuse the merchant scan on subsequent
+    /// iterations. Match prefix + any-digits + optional space + optional HH:MM.
+    static let cardNoiseRegex = try! NSRegularExpression(
+        pattern: #"^(信用卡|储蓄卡|一卡通|借记卡|尾号|卡号)\s*\d{2,}"#
+    )
+    static func looksLikeCardNoise(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespaces)
+        return cardNoiseRegex.firstMatch(in: t, range: NSRange(t.startIndex..., in: t)) != nil
+    }
+
+    /// Balance-line noise like "余额:¥192,653.32" / "余额 ¥3,450.00" that
+    /// appears after an entry on CMB 储蓄卡 rows. Matches any line starting
+    /// with "余额" optionally followed by colon + amount.
+    static func looksLikeBalanceLine(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespaces)
+        return t.hasPrefix("余额") && (t.contains("¥") || t.range(of: #"\d"#, options: .regularExpression) != nil)
     }
 
     /// Compute the set of line indices whose amount is a *summary* total —
@@ -162,7 +191,10 @@ enum ParserKit {
         guard start <= end else { return nil }
         for i in start...end {
             let t = lines[i].trimmingCharacters(in: .whitespaces)
-            if t.isEmpty || looksLikeStatusChip(t) { continue }
+            if t.isEmpty
+                || looksLikeStatusChip(t)
+                || looksLikeCardNoise(t)
+                || looksLikeBalanceLine(t) { continue }
             if excluding.contains(i) { return nil }  // summary amount — bail
             if extractAmountCents(from: t, assumeExpense: assumeExpense) != nil {
                 return i

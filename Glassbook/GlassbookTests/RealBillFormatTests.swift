@@ -159,7 +159,55 @@ struct RealBillFormatTests {
         let matched = Self.matches(parsed: parsed, expected: Self.cmbExpected)
         let recall = Double(matched) / Double(Self.cmbExpected.count)
         print("📊 CMB REAL recall: \(matched)/\(Self.cmbExpected.count) = \(Int(recall*100))%")
-        #expect(recall >= 0.5, "CMB real recall regressed: \(recall)")
+        #expect(recall >= 1.0, "CMB real recall regressed: \(recall)")
+    }
+
+    // MARK: - CMB screenshot #2 (user submitted 2026-04-20)
+    //
+    // Second real CMB screenshot with a denser "钱大妈" run, a "4.11" day
+    // header mid-list, and a partial row clipped at the top. Nine full rows
+    // should parse cleanly; the clipped top row is intentionally NOT in the
+    // expected list since its merchant isn't visible.
+
+    static let cmbLines2: [String] = [
+        "21:59",
+        "收支",
+        "2026.04", "银行卡", "按金额", "筛选",
+        "信用卡1440 14:18",                                    // clipped top row
+        "钱大妈",           "-¥2.59",  "信用卡1440 09:45",
+        "钱大妈",           "-¥3.98",  "信用卡1440 09:44",
+        "钱大妈",           "-¥22.26", "信用卡1440 09:43",
+        "钱大妈",           "-¥45.34", "信用卡1440 08:17",
+        "津品汤包半里花海店", "-¥11.00", "信用卡1440 08:13",
+        "大生优品生活超市",   "-¥82.04", "信用卡1440 08:10",
+        "肯德基",           "-¥6.00",  "信用卡1440 08:06",
+        "4.11",
+        "美团平台商户",      "-¥65.00", "信用卡1440 21:28",
+        "湾仔阿婆牛杂创维店", "-¥26.80", "信用卡1440 18:08",
+        "上拉加载更多数据",
+        "明细", "账本",
+    ]
+
+    static let cmbExpected2: [(merchant: String, cents: Int)] = [
+        ("钱大妈", 259),
+        ("钱大妈", 398),
+        ("钱大妈", 2_226),
+        ("钱大妈", 4_534),
+        ("津品汤包半里花海店", 1_100),
+        ("大生优品生活超市", 8_204),
+        ("肯德基", 600),
+        ("美团平台商户", 6_500),
+        ("湾仔阿婆牛杂创维店", 2_680),
+    ]
+
+    @Test func cmbRealRecall2() {
+        let parsed = CMBParser().parse(lines: Self.cmbLines2)
+        print("📊 CMB REAL #2 parsed \(parsed.count) rows:")
+        for r in parsed { print("   → \(r.merchant) / \(r.amountCents)") }
+        let matched = Self.matches(parsed: parsed, expected: Self.cmbExpected2)
+        let recall = Double(matched) / Double(Self.cmbExpected2.count)
+        print("📊 CMB REAL #2 recall: \(matched)/\(Self.cmbExpected2.count) = \(Int(recall*100))%")
+        #expect(recall >= 1.0, "CMB real #2 recall regressed: \(recall)")
     }
 
     // MARK: - Cross-platform dedup (user report, 2026-04-19)
