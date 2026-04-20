@@ -3,6 +3,7 @@ import SwiftUI
 /// Spec §4.6 · 个人中心 — entry point for all V1.1 / V1.2 Hero features.
 struct ProfileView: View {
     @Environment(AppStore.self) private var store
+    @Environment(AppLock.self) private var lock
     @State private var showBudget = false
     @State private var showSmartImport = false
     @State private var showAccounts = false
@@ -18,6 +19,7 @@ struct ProfileView: View {
     @State private var showAdvisor = false
     @State private var showExport = false
     @State private var showDataManagement = false
+    @State private var showLockSettings = false
 
     var body: some View {
         ScrollView {
@@ -89,7 +91,9 @@ struct ProfileView: View {
                 ])
 
                 menuGroup(title: "其他", rows: [
-                    .init(icon: "lock.shield", label: "Face ID 解锁", value: "已开启"),
+                    .init(icon: "lock.shield", label: "Face ID 解锁",
+                          value: lockStatus,
+                          action: { showLockSettings = true }),
                     .init(icon: "rectangle.on.rectangle", label: "桌面小组件", value: "长按主屏添加"),
                     .init(icon: "paintpalette", label: "外观与主题", value: "玻璃 · 亮色"),
                     .init(icon: "info.circle", label: "关于 Glassbook", value: "V1.2.0"),
@@ -116,11 +120,25 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showExport)        { sheet { InvoiceExportView() } }
         .sheet(isPresented: $showDataManagement) { sheet { DataManagementView() } }
+        .sheet(isPresented: $showLockSettings)   { sheet { LockSettingsView() }.environment(lock) }
         .fullScreenCover(isPresented: $showSmartImport) {
             SmartImportFlow(isPresented: $showSmartImport)
         }
         .fullScreenCover(isPresented: $showAnnualWrap) {
             AnnualWrapView()
+        }
+    }
+
+    private var lockStatus: String {
+        guard lock.faceIDEnabled else { return "已关闭" }
+        switch lock.gracePeriodSeconds {
+        case 0:    return "每次刷脸"
+        case -1:   return "信任设备"
+        case 60:   return "1 分钟"
+        case 300:  return "5 分钟"
+        case 1800: return "30 分钟"
+        case 7200: return "2 小时"
+        default:   return "\(max(1, lock.gracePeriodSeconds / 60)) 分钟"
         }
     }
 
@@ -232,8 +250,9 @@ struct ProfileView: View {
 }
 
 #Preview {
-    ZStack {
+    let lock = AppLock(); lock.skipAuth = true
+    return ZStack {
         AuroraBackground(palette: .profile)
-        ProfileView().environment(AppStore())
+        ProfileView().environment(AppStore()).environment(lock)
     }
 }

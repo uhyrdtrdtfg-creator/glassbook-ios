@@ -9,6 +9,7 @@ struct GlassbookApp: App {
 
     @State private var store: AppStore
     @State private var lock = AppLock()
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         let c = PersistenceController.makeDiskContainer(useCloudKit: true)
@@ -34,6 +35,13 @@ struct GlassbookApp: App {
                 }
             }
             .animation(.easeInOut(duration: 0.25), value: lock.isLocked)
+            .onChange(of: scenePhase) { _, newPhase in
+                switch newPhase {
+                case .background: lock.handleBackground()
+                case .active:     lock.handleForeground()
+                default: break
+                }
+            }
         }
         .modelContainer(container)
     }

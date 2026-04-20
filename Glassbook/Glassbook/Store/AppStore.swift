@@ -31,6 +31,28 @@ final class AppStore {
             AppSeed.seed(context: ctx)
             reload()
         }
+        // Drain anything a Shortcut-triggered AppIntent enqueued while we were
+        // backgrounded / terminated (spec v2 · Diagram 03).
+        drainPendingImports()
+    }
+
+    /// Called on init and on foreground. Pops everything the
+    /// `ImportScreenshotIntent` put in the App Group queue and writes each
+    /// entry through `addExpense()` so it goes to SwiftData + snapshots.
+    func drainPendingImports() {
+        let entries = PendingImportQueue.drain()
+        guard !entries.isEmpty else { return }
+        print("📥 Draining \(entries.count) shortcut-captured transactions")
+        for e in entries {
+            guard let slug = Category.Slug(rawValue: e.categorySlug) else { continue }
+            addExpense(
+                amountCents: e.amountCents,
+                category: slug,
+                merchant: e.merchant,
+                note: "via iOS Shortcut",
+                timestamp: e.timestamp
+            )
+        }
     }
 
     /// Preview / in-memory init (no persistence). Used by `#Preview` blocks.

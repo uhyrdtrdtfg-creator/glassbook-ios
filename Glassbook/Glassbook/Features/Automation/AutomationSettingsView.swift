@@ -194,9 +194,15 @@ struct AutomationSettingsView: View {
     private var howToCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("怎么接入").eyebrowStyle()
-            stepRow(num: "1", text: "长按主屏 · 打开「快捷指令」App")
-            stepRow(num: "2", text: "新建「截屏后」自动化 → 运行 Glassbook 识别")
-            stepRow(num: "3", text: "截屏任意支付页 → Live Activity 3 秒识别 + 5 秒入账")
+            stepRow(num: "1", text: "打开「快捷指令」App → 自动化 → 新建")
+            stepRow(num: "2", text: "触发选「每次截屏」→ 操作搜索「识别截屏记账」")
+            stepRow(num: "3", text: "或对 Siri 说「用 Glassbook 识别这张图」")
+            Text("App Intent 已内置,快捷指令库里会自动出现。识别后会进入「待入账」,下次打开 Glassbook 就一键确认。")
+                .font(.system(size: 10))
+                .foregroundStyle(AppColors.ink3)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2)
         }
         .padding(16)
         .glassCard(radius: 14)

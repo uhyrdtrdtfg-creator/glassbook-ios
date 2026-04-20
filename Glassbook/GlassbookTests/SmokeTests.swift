@@ -91,6 +91,8 @@ struct ViewSmokeTests {
 @Suite("AppLock") @MainActor
 struct AppLockTests {
     @Test func initialStateIsLocked() {
+        UserDefaults.standard.removeObject(forKey: "applock.last.unlocked")
+        UserDefaults.standard.removeObject(forKey: "applock.last.backgrounded")
         #expect(AppLock().isLocked == true)
     }
     @Test func skipAuthUnlocksWithoutBiometrics() async {
@@ -111,6 +113,69 @@ struct AppLockTests {
         #expect(lock.isGuestMode == false)
         lock.toggleGuestMode()
         #expect(lock.isGuestMode == true)
+    }
+
+    /// Spec §8.4 · faceIDEnabled=false → app never locks at launch.
+    @Test func disablingFaceIDStartsUnlocked() {
+        let d = UserDefaults.standard
+        d.set(false, forKey: "applock.faceid.enabled")
+        d.set(300,   forKey: "applock.grace.seconds")
+        defer {
+            d.removeObject(forKey: "applock.faceid.enabled")
+            d.removeObject(forKey: "applock.grace.seconds")
+        }
+        #expect(AppLock().isLocked == false)
+    }
+
+    /// Grace period -1 ("信任设备 · 永不重锁") skips lock.
+    @Test func neverGraceStartsUnlocked() {
+        let d = UserDefaults.standard
+        d.set(true, forKey: "applock.faceid.enabled")
+        d.set(-1,   forKey: "applock.grace.seconds")
+        defer {
+            d.removeObject(forKey: "applock.faceid.enabled")
+            d.removeObject(forKey: "applock.grace.seconds")
+        }
+        #expect(AppLock().isLocked == false)
+    }
+
+    /// Recent unlock within grace period keeps session warm on cold start.
+    @Test func recentUnlockWithinGraceSkipsLock() {
+        let d = UserDefaults.standard
+        d.set(true, forKey: "applock.faceid.enabled")
+        d.set(300,  forKey: "applock.grace.seconds")
+        d.set(Date(), forKey: "applock.last.unlocked")
+        defer {
+            d.removeObject(forKey: "applock.faceid.enabled")
+            d.removeObject(forKey: "applock.grace.seconds")
+            d.removeObject(forKey: "applock.last.unlocked")
+        }
+        #expect(AppLock().isLocked == false)
+    }
+
+    /// Stale unlock older than grace → must re-authenticate.
+    @Test func staleUnlockBeyondGraceLocks() {
+        let d = UserDefaults.standard
+        d.set(true, forKey: "applock.faceid.enabled")
+        d.set(60,   forKey: "applock.grace.seconds")
+        d.set(Date().addingTimeInterval(-600), forKey: "applock.last.unlocked")
+        d.removeObject(forKey: "applock.last.backgrounded")
+        defer {
+            d.removeObject(forKey: "applock.faceid.enabled")
+            d.removeObject(forKey: "applock.grace.seconds")
+            d.removeObject(forKey: "applock.last.unlocked")
+        }
+        #expect(AppLock().isLocked == true)
+    }
+
+    @Test func foregroundAfterShortBackgroundKeepsUnlocked() async {
+        let lock = AppLock()
+        lock.skipAuth = true
+        await lock.unlock()
+        lock.handleBackground()
+        lock.gracePeriodSeconds = 300
+        lock.handleForeground()
+        #expect(lock.isLocked == false)
     }
 }
 
