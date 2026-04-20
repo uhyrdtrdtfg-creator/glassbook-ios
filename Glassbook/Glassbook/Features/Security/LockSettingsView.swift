@@ -5,6 +5,7 @@ import SwiftUI
 struct LockSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppLock.self) private var lock
+    @State private var reauthError: String?
 
     private let graceOptions: [(label: String, seconds: Int)] = [
         ("立即 · 每次都刷脸",  0),
@@ -16,18 +17,22 @@ struct LockSettingsView: View {
     ]
 
     var body: some View {
-        @Bindable var lock = lock
         ZStack {
             AuroraBackground(palette: .profile)
             ScrollView {
                 VStack(spacing: 14) {
                     header
-                    toggleCard(bind: $lock.faceIDEnabled)
+                    gatedToggleCard
                     if lock.faceIDEnabled {
                         graceCard
                         explainerCard
                     } else {
                         offExplainerCard
+                    }
+                    if let err = reauthError {
+                        Text(err).font(.system(size: 11))
+                            .foregroundStyle(AppColors.expenseRed)
+                            .padding(.horizontal, 8)
                     }
                     Spacer().frame(height: 40)
                 }
@@ -53,7 +58,12 @@ struct LockSettingsView: View {
         }
     }
 
-    private func toggleCard(bind: Binding<Bool>) -> some View {
+    /// Toggle is visually a Toggle but interaction is gated by a Face ID
+    /// re-auth — otherwise an unlocked phone in someone else's hand could
+    /// disable biometrics with one tap and own the account forever.
+    /// Only the ACTUAL change path runs auth; the Toggle reflects the
+    /// committed state synchronously.
+    private var gatedToggleCard: some View {
         HStack(spacing: 14) {
             ZStack {
                 Circle().fill(LinearGradient.brand())
@@ -63,15 +73,46 @@ struct LockSettingsView: View {
             .frame(width: 44, height: 44)
             VStack(alignment: .leading, spacing: 3) {
                 Text("Face ID 解锁").font(.system(size: 14, weight: .medium))
-                Text("关掉后,打开即用,不再弹验证窗")
+                Text("改动需要再次 Face ID / 密码确认")
                     .font(.system(size: 11))
                     .foregroundStyle(AppColors.ink3)
             }
             Spacer()
-            Toggle("", isOn: bind).labelsHidden().tint(AppColors.ink)
+            Toggle("", isOn: Binding(
+                get: { lock.faceIDEnabled },
+                set: { new in Task { await changeFaceIDEnabled(to: new) } }
+            ))
+            .labelsHidden().tint(AppColors.ink)
         }
         .padding(16)
         .glassCard()
+    }
+
+    private func changeFaceIDEnabled(to new: Bool) async {
+        guard new != lock.faceIDEnabled else { return }
+        let reason = new ? "开启 Face ID 锁" : "关闭 Face ID 锁"
+        let ok = await lock.confirmIdentity(reason: reason)
+        await MainActor.run {
+            if ok {
+                lock.faceIDEnabled = new
+                reauthError = nil
+            } else {
+                reauthError = "验证未通过 · 设置未改动"
+            }
+        }
+    }
+
+    private func changeGrace(to seconds: Int) async {
+        guard seconds != lock.gracePeriodSeconds else { return }
+        let ok = await lock.confirmIdentity(reason: "修改重锁时间")
+        await MainActor.run {
+            if ok {
+                lock.gracePeriodSeconds = seconds
+                reauthError = nil
+            } else {
+                reauthError = "验证未通过 · 设置未改动"
+            }
+        }
     }
 
     private var graceCard: some View {
@@ -80,7 +121,7 @@ struct LockSettingsView: View {
             VStack(spacing: 0) {
                 ForEach(Array(graceOptions.enumerated()), id: \.offset) { idx, opt in
                     Button {
-                        lock.gracePeriodSeconds = opt.seconds
+                        Task { await changeGrace(to: opt.seconds) }
                     } label: {
                         HStack {
                             Text(opt.label)

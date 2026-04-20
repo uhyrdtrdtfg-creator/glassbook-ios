@@ -3,9 +3,11 @@ import Foundation
 struct WeChatParser: PlatformParser {
     let platform: ImportBatch.Platform = .wechat
 
-    func canParse(lines: [String]) -> Bool {
+    func score(lines: [String]) -> Int {
         let joined = lines.joined(separator: " ")
-        return joined.contains("微信支付") || joined.contains("WeChat Pay") || joined.contains("零钱")
+        var n = 0
+        for k in ["微信支付", "WeChat Pay", "零钱", "微信", "财付通", "钱包"] where joined.contains(k) { n += 1 }
+        return n
     }
 
     /// WeChat bill layout (real screenshots):

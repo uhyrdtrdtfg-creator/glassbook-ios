@@ -6,6 +6,7 @@ struct BillsView: View {
     @State private var month: Date = Date()
     @State private var filterCategory: Category.Slug? = nil
     @State private var showFilter = false
+    @State private var editingTxID: UUID?
 
     var body: some View {
         ScrollView {
@@ -25,7 +26,16 @@ struct BillsView: View {
             FilterSheet(selected: $filterCategory)
                 .presentationDetents([.medium])
         }
+        .sheet(item: Binding(
+            get: { editingTxID.map { IDWrap(id: $0) } },
+            set: { editingTxID = $0?.id }
+        )) { wrap in
+            EditTransactionSheet(txID: wrap.id)
+                .environment(store)
+        }
     }
+
+    private struct IDWrap: Identifiable { let id: UUID }
 
     private var nav: some View {
         HStack {
@@ -112,19 +122,30 @@ struct BillsView: View {
                     VStack(spacing: 0) {
                         ForEach(Array(filtered.enumerated()), id: \.element.id) { idx, tx in
                             if idx > 0 { Divider().background(AppColors.glassDivider).padding(.horizontal, 10) }
-                            TransactionRow(tx: tx, compact: true)
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        store.delete(tx.id)
-                                    } label: {
-                                        Label("删除", systemImage: "trash")
-                                    }
-                                    Button {
-                                        UIPasteboard.general.string = "\(tx.merchant) \(Money.yuan(tx.amountCents, showDecimals: true))"
-                                    } label: {
-                                        Label("复制", systemImage: "doc.on.doc")
-                                    }
+                            Button {
+                                editingTxID = tx.id
+                            } label: {
+                                TransactionRow(tx: tx, compact: true)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button {
+                                    editingTxID = tx.id
+                                } label: {
+                                    Label("编辑", systemImage: "pencil")
                                 }
+                                Button(role: .destructive) {
+                                    store.delete(tx.id)
+                                } label: {
+                                    Label("删除", systemImage: "trash")
+                                }
+                                Button {
+                                    UIPasteboard.general.string = "\(tx.merchant) \(Money.yuan(tx.amountCents, showDecimals: true))"
+                                } label: {
+                                    Label("复制", systemImage: "doc.on.doc")
+                                }
+                            }
                         }
                     }
                     .padding(8)

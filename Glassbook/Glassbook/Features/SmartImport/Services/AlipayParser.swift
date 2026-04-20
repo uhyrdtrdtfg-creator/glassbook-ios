@@ -3,9 +3,11 @@ import Foundation
 struct AlipayParser: PlatformParser {
     let platform: ImportBatch.Platform = .alipay
 
-    func canParse(lines: [String]) -> Bool {
+    func score(lines: [String]) -> Int {
         let joined = lines.joined(separator: " ")
-        return joined.contains("支付宝") || joined.contains("Alipay") || joined.contains("余额宝")
+        var n = 0
+        for k in ["支付宝", "Alipay", "余额宝", "花呗", "蚂蚁", "账单详情"] where joined.contains(k) { n += 1 }
+        return n
     }
 
     /// Alipay bill layout (real screenshots):

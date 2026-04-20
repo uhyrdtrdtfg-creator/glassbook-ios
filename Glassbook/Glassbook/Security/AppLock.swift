@@ -101,6 +101,29 @@ final class AppLock {
 
     func toggleGuestMode() { isGuestMode.toggle() }
 
+    /// Prompt Face ID / device passcode purely to confirm identity, without
+    /// touching `isLocked`. Used by LockSettingsView to gate the Face ID
+    /// on/off toggle and grace period changes — otherwise a thief with the
+    /// unlocked phone could disable biometrics and keep access forever.
+    /// Spec §8.4 · 防止"拿到解锁手机就能改策略".
+    func confirmIdentity(reason: String) async -> Bool {
+        if skipAuth { return true }
+        let ctx = LAContext()
+        ctx.localizedFallbackTitle = "使用系统密码"
+        var error: NSError?
+        guard ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+            // No biometrics / passcode on device → let the change through so
+            // users without a device passcode aren't permanently locked out
+            // of their own settings.
+            return true
+        }
+        do {
+            return try await ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)
+        } catch {
+            return false
+        }
+    }
+
     // MARK: - Scene lifecycle hook
 
     /// Called by RootView's scene-phase observer. Writes the backgrounded time
@@ -115,8 +138,17 @@ final class AppLock {
             isLocked = false
             return
         }
-        guard let bg = UserDefaults.standard.object(forKey: Keys.backgroundedAt) as? Date else { return }
-        if Date().timeIntervalSince(bg) > TimeInterval(gracePeriodSeconds) {
+        // Match computeInitialLockState — use the MOST RECENT of "last unlocked"
+        // and "last backgrounded", whichever is more recent. If user killed the
+        // app (swipe-up) without emitting a background event, `backgroundedAt`
+        // can be stale while `lastUnlockedAt` is fresh; only looking at `bg`
+        // mis-locks a just-unlocked session on the next foreground.
+        let last = [
+            UserDefaults.standard.object(forKey: Keys.lastUnlockedAt) as? Date,
+            UserDefaults.standard.object(forKey: Keys.backgroundedAt) as? Date
+        ].compactMap { $0 }.max()
+        guard let ts = last else { return }
+        if Date().timeIntervalSince(ts) > TimeInterval(gracePeriodSeconds) {
             isLocked = true
         }
     }

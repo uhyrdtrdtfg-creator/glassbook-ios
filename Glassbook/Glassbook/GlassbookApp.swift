@@ -38,7 +38,12 @@ struct GlassbookApp: App {
             .onChange(of: scenePhase) { _, newPhase in
                 switch newPhase {
                 case .background: lock.handleBackground()
-                case .active:     lock.handleForeground()
+                case .active:
+                    lock.handleForeground()
+                    // Pick up anything the AppIntent shortcut dropped in the
+                    // App Group queue while we were backgrounded so "最近交易"
+                    // shows the new entry the moment user returns.
+                    store.drainPendingImports()
                 default: break
                 }
             }

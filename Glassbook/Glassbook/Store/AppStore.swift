@@ -39,6 +39,9 @@ final class AppStore {
     /// Called on init and on foreground. Pops everything the
     /// `ImportScreenshotIntent` put in the App Group queue and writes each
     /// entry through `addExpense()` so it goes to SwiftData + snapshots.
+    /// Calls `reload()` at the end so the Home screen's "最近交易" list
+    /// rehydrates from SwiftData even if the app was backgrounded when the
+    /// Shortcut fired.
     func drainPendingImports() {
         let entries = PendingImportQueue.drain()
         guard !entries.isEmpty else { return }
@@ -53,6 +56,7 @@ final class AppStore {
                 timestamp: e.timestamp
             )
         }
+        reload()
     }
 
     /// Preview / in-memory init (no persistence). Used by `#Preview` blocks.
@@ -244,6 +248,38 @@ final class AppStore {
         let desc = FetchDescriptor<SDTransaction>(predicate: #Predicate { $0.id == id })
         for sd in (try? context.fetch(desc)) ?? [] { context.delete(sd) }
         try? context.save()
+    }
+
+    /// Edit an existing transaction. Writes through to SwiftData so changes
+    /// survive relaunch + sync to CloudKit. The struct is value-type so we
+    /// rebuild the in-memory entry + persist.
+    func updateTransaction(id: UUID,
+                           merchant: String? = nil,
+                           amountCents: Int? = nil,
+                           category: Category.Slug? = nil,
+                           timestamp: Date? = nil,
+                           note: String? = nil) {
+        guard let idx = transactions.firstIndex(where: { $0.id == id }) else { return }
+        var tx = transactions[idx]
+        if let m = merchant, !m.trimmingCharacters(in: .whitespaces).isEmpty { tx.merchant = m }
+        if let c = amountCents, c > 0 { tx.amountCents = c }
+        if let cat = category { tx.categoryID = cat }
+        if let t = timestamp { tx.timestamp = t }
+        if let n = note { tx.note = n.isEmpty ? nil : n }
+        transactions[idx] = tx
+        // re-sort so a date edit doesn't leave the row in the wrong place
+        transactions.sort { $0.timestamp > $1.timestamp }
+
+        guard let context else { return }
+        let desc = FetchDescriptor<SDTransaction>(predicate: #Predicate { $0.id == id })
+        if let sd = (try? context.fetch(desc))?.first {
+            sd.merchant = tx.merchant
+            sd.amountCents = tx.amountCents
+            sd.categoryRaw = tx.categoryID.rawValue
+            sd.timestamp = tx.timestamp
+            sd.note = tx.note
+            try? context.save()
+        }
     }
 
     /// Spec §5.3 · commit a smart-import batch. Returns the new batchID so the UI can

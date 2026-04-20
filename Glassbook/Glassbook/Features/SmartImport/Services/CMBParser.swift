@@ -3,10 +3,14 @@ import Foundation
 struct CMBParser: PlatformParser {
     let platform: ImportBatch.Platform = .cmb
 
-    func canParse(lines: [String]) -> Bool {
+    func score(lines: [String]) -> Int {
         let joined = lines.joined(separator: " ")
-        return joined.contains("招商银行") || joined.contains("CMB")
-            || joined.contains("收支明细") || joined.contains("信用卡账单")
+        var n = 0
+        for k in [
+            "招商银行", "CMB", "收支明细", "信用卡账单",
+            "一卡通", "尾号", "本期账单", "未入账", "招行"
+        ] where joined.contains(k) { n += 1 }
+        return n
     }
 
     /// CMB bill layout varies: status chips like "未入账" often sit between

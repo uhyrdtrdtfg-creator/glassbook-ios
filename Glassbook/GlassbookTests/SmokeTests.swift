@@ -84,6 +84,9 @@ struct ViewSmokeTests {
         )
         _ = EditPendingRowSheet(row: Binding(get: { row }, set: { row = $0 }), onDone: {})
     }
+    @Test func editTransactionSheetBuilds() {
+        _ = EditTransactionSheet(txID: UUID()).environment(store)
+    }
     @Test func lockViewBuilds() {
         _ = LockView().environment(lock)
     }

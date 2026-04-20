@@ -3,10 +3,17 @@ import Foundation
 /// Spec §5.3 · Parse OCR'd lines from a platform screenshot into `PendingImportRow`s.
 protocol PlatformParser {
     var platform: ImportBatch.Platform { get }
-    /// Heuristic: does this parser recognize any platform-specific marker in the OCR text?
-    func canParse(lines: [String]) -> Bool
+    /// Confidence score — count of platform-specific keyword hits in the OCR text.
+    /// Higher = more likely to be this platform. 0 = no markers found.
+    func score(lines: [String]) -> Int
     /// Extract structured rows from the OCR text.
     func parse(lines: [String]) -> [PendingImportRow]
+}
+
+extension PlatformParser {
+    /// Default `canParse` derives from `score`. Parsers that need stricter
+    /// gating can still override.
+    func canParse(lines: [String]) -> Bool { score(lines: lines) > 0 }
 }
 
 // MARK: - Shared helpers
@@ -225,8 +232,16 @@ enum ParserRegistry {
         CMBParser(),
     ]
 
-    /// Best-matching parser for a given OCR output. Falls back to Alipay as a safe default.
+    /// Best-matching parser for a given OCR output. Scores every parser's
+    /// keyword hits and picks the highest; ties stay stable (first defined
+    /// wins). Falls back to Alipay only when EVERY parser scores 0 —
+    /// previously Alipay won by list position even when WeChat / CMB had
+    /// stronger matches.
     static func pick(for lines: [String]) -> PlatformParser {
-        all.first(where: { $0.canParse(lines: lines) }) ?? AlipayParser()
+        let scored = all.map { (parser: $0, score: $0.score(lines: lines)) }
+        if let best = scored.max(by: { $0.score < $1.score }), best.score > 0 {
+            return best.parser
+        }
+        return AlipayParser()
     }
 }
