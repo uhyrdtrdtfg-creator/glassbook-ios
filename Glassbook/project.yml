@@ -33,6 +33,11 @@ targets:
     info:
       path: Glassbook/Generated-Info.plist
       properties:
+        # Explicit version pinning — xcodegen's default sets both to "1.0"
+        # literals, ignoring the project-level MARKETING_VERSION. That's why
+        # earlier archives shipped as v1.0 despite project.yml saying 1.4.0.
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}
         CFBundleDisplayName: Glassbook
         UISupportedInterfaceOrientations~iphone:
