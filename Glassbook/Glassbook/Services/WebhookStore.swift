@@ -254,7 +254,11 @@ enum WebhookTemplate {
     ]
 
     struct Preset: Identifiable {
-        let id = UUID()
+        /// Use the label as stable id — UUID() per-instance generates a fresh
+        /// id every time the struct gets reconstructed, which trips up SwiftUI
+        /// ForEach diffing and makes the preset picker visually stutter on
+        /// re-open. Labels are unique across the preset list.
+        var id: String { label }
         let label: String
         let detail: String
         let body: String
