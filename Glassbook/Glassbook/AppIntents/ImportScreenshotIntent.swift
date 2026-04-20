@@ -12,7 +12,7 @@ import UIKit
 struct ImportScreenshotIntent: AppIntent {
     static var title: LocalizedStringResource = "识别截屏记账"
     static var description = IntentDescription(
-        "用 Apple Vision 识别支付截屏,自动填充金额 / 商户 / 分类并弹出 Live Activity 5 秒确认条。"
+        "本地 OCR 识别支付截屏,自动填充金额 / 商户 / 分类,并在锁屏弹出 5 秒确认条。"
     )
     static var openAppWhenRun: Bool = false
 
