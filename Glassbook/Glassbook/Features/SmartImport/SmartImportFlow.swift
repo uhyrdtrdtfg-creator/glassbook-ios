@@ -213,6 +213,9 @@ struct SmartImportEntryScreen: View {
 
     @State private var pickerItem: PhotosPickerItem?
     @State private var pickerError: String?
+    @State private var latestPreview: LatestScreenshotService.Result?
+    @State private var latestError: String?
+    @State private var latestLoading: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -335,39 +338,143 @@ struct SmartImportEntryScreen: View {
         .glassCard()
     }
 
-    /// Real OCR — single photo-picker button. Matches `.images` so users can
-    /// pick a screenshot OR a photo of a paper receipt; iOS smart albums let
-    /// them jump to "Screenshots" inside the picker if that's what they have.
+    /// Real OCR — two entry points:
+    ///   1. `latestScreenshotButton` pulls the most recent Screenshot asset
+    ///      directly from Photos (one tap, no picker).
+    ///   2. `PhotosPicker` fallback if the user wants to pick manually.
     private var realOCRSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("用真实截图识别 · 本地 Vision OCR").eyebrowStyle()
                 .padding(.horizontal, 8)
                 .padding(.top, 10)
 
-            PhotosPicker(selection: $pickerItem, matching: .images) {
-                HStack(spacing: 10) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 16))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("从相册选取").font(.system(size: 14, weight: .medium))
-                        Text("Vision 本地 OCR · 图片原图不出设备")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.white.opacity(0.7))
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.white.opacity(0.7))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 16)
-                .frame(maxWidth: .infinity, minHeight: 54)
-                .background(RoundedRectangle(cornerRadius: 14).fill(AppColors.ink))
-            }
+            latestScreenshotButton
+            pickerButton
 
-            if let err = pickerError {
+            if let err = pickerError ?? latestError {
                 Text(err).font(.system(size: 11)).foregroundStyle(AppColors.expenseRed)
             }
+        }
+        .task {
+            // Show a preview of the latest screenshot the moment the sheet
+            // opens, so the user knows what "识别最新截屏" will process.
+            await refreshLatestPreview()
+        }
+    }
+
+    private var latestScreenshotButton: some View {
+        Button {
+            Task { await tapLatestScreenshot() }
+        } label: {
+            HStack(spacing: 12) {
+                thumbnail
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("识别最新截屏").font(.system(size: 14, weight: .medium))
+                    Text(latestSubtitle)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.78))
+                }
+                Spacer()
+                if latestLoading {
+                    ProgressView().tint(.white)
+                } else {
+                    Image(systemName: "sparkles").font(.system(size: 14))
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity, minHeight: 62)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(LinearGradient(colors: [
+                        Color(hex: 0x1677FF), Color(hex: 0x6450C8)
+                    ], startPoint: .topLeading, endPoint: .bottomTrailing))
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(latestLoading)
+    }
+
+    @ViewBuilder
+    private var thumbnail: some View {
+        if let preview = latestPreview {
+            Image(uiImage: preview.image)
+                .resizable().scaledToFill()
+                .frame(width: 38, height: 38)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(Color.white.opacity(0.35), lineWidth: 0.8)
+                )
+        } else {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.18))
+                Image(systemName: "rectangle.dashed").font(.system(size: 16))
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            .frame(width: 38, height: 38)
+        }
+    }
+
+    private var latestSubtitle: String {
+        if let preview = latestPreview { return preview.ageLabel + " · 点一下就开始 OCR" }
+        if latestLoading               { return "正在读相册…" }
+        return "点一下从相册自动拿最近一张截屏"
+    }
+
+    private var pickerButton: some View {
+        PhotosPicker(selection: $pickerItem, matching: .images) {
+            HStack(spacing: 10) {
+                Image(systemName: "photo.on.rectangle.angled")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppColors.ink2)
+                    .frame(width: 28, height: 28)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.55)))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("从相册选取别的图").font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(AppColors.ink)
+                    Text("手动挑一张 · 适合老截屏或实体小票")
+                        .font(.system(size: 10))
+                        .foregroundStyle(AppColors.ink3)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11))
+                    .foregroundStyle(AppColors.ink3)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .glassCard(radius: 14)
+    }
+
+    private func refreshLatestPreview() async {
+        latestLoading = true
+        defer { latestLoading = false }
+        do {
+            let result = try await LatestScreenshotService.fetchLatest()
+            await MainActor.run {
+                latestPreview = result
+                latestError = nil
+            }
+        } catch let e as LatestScreenshotService.Failure {
+            await MainActor.run { latestError = e.errorDescription; latestPreview = nil }
+        } catch {
+            await MainActor.run { latestError = error.localizedDescription }
+        }
+    }
+
+    private func tapLatestScreenshot() async {
+        // If we already have a fresh preview, skip re-fetching and fire OCR now.
+        if let preview = latestPreview {
+            onRealImage(preview.image, nil)
+            return
+        }
+        await refreshLatestPreview()
+        if let preview = latestPreview {
+            onRealImage(preview.image, nil)
         }
     }
 

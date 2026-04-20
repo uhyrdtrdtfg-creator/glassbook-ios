@@ -1,8 +1,10 @@
 import SwiftUI
 
-/// Spec v2 §6.1.3 · 零点击入账设置页 (iOS Shortcuts / SMS / MCP).
-/// Matches Diagram 03 right panel: three automation channel toggles + auto-save
-/// delay chips + "省时可视化" stat card.
+/// Spec v2 §6.1.3 · 零点击入账设置页 (iOS 端).
+/// 只保留 iOS 真能做的:截屏自动识别 (通过快捷指令 + AppIntent)。
+/// 短信入账 · iOS 不给第三方读 SMS。
+/// MCP 入账 · MCP Server 跑在 Mac 上,iOS 没有它的控制面。
+/// 两者都从本页面删掉,不留假按钮。
 struct AutomationSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppStore.self) private var store
@@ -26,18 +28,6 @@ struct AutomationSettingsView: View {
                             get: { screenshotOn },
                             set: { new in screenshotOn = new; AutomationSettings.screenshotOn = new }
                         )
-                    )
-                    comingSoonRow(
-                        icon: "message.badge",
-                        title: "短信入账 (招行 / 建行 / 工行)",
-                        detail: "iOS 限制第三方 App 读短信,需等 Messages Filter 扩展支持",
-                        badge: "即将支持"
-                    )
-                    infoRow(
-                        icon: "bolt.horizontal.circle",
-                        title: "MCP 对话入账",
-                        detail: "独立 Mac 进程 · Claude Desktop / Cline / Zed 连接,常开",
-                        badge: "Mac 进程"
                     )
                     delayCard
                     savingsCard
@@ -139,57 +129,6 @@ struct AutomationSettingsView: View {
         .glassCard()
     }
 
-    /// Disabled channel row — shows the feature but flags it as not yet
-    /// wired so users don't flip an ornament.
-    private func comingSoonRow(icon: String, title: String, detail: String, badge: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundStyle(AppColors.ink3)
-                .frame(width: 36, height: 36)
-                .background(RoundedRectangle(cornerRadius: 11).fill(Color.white.opacity(0.35)))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(AppColors.ink2)
-                Text(detail).font(.system(size: 10))
-                    .foregroundStyle(AppColors.ink3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer()
-            Text(badge).font(.system(size: 9, weight: .medium))
-                .foregroundStyle(AppColors.auroraAmber)
-                .padding(.horizontal, 8).padding(.vertical, 4)
-                .background(Capsule().fill(AppColors.auroraAmber.opacity(0.18)))
-        }
-        .padding(14)
-        .glassCard()
-        .opacity(0.75)
-    }
-
-    /// Informational channel row — the feature exists but runs out of band
-    /// (e.g. MCP Server on Mac), so there's nothing to toggle from iOS.
-    private func infoRow(icon: String, title: String, detail: String, badge: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundStyle(AppColors.ink2)
-                .frame(width: 36, height: 36)
-                .background(RoundedRectangle(cornerRadius: 11).fill(Color.white.opacity(0.55)))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 13, weight: .medium))
-                Text(detail).font(.system(size: 10))
-                    .foregroundStyle(AppColors.ink3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer()
-            Text(badge).font(.system(size: 9, weight: .medium))
-                .foregroundStyle(AppColors.successGreen)
-                .padding(.horizontal, 8).padding(.vertical, 4)
-                .background(Capsule().fill(AppColors.successGreen.opacity(0.18)))
-        }
-        .padding(14)
-        .glassCard()
-    }
 
     private var delayCard: some View {
         VStack(alignment: .leading, spacing: 10) {

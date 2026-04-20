@@ -85,7 +85,7 @@ struct ProfileView: View {
                           value: "\(WebhookStore.shared.endpoints.count) 端点",
                           action: { showWebhooks = true }),
                     .init(icon: "bolt.horizontal", label: "自动化记账",
-                          value: "截屏 · 短信 · MCP",
+                          value: "截屏 · 快捷指令",
                           action: { showAutomation = true }),
                     .init(icon: "exclamationmark.arrow.triangle.2.circlepath", label: "沉没成本分析",
                           value: "闲置订阅 + 吃灰硬件",
