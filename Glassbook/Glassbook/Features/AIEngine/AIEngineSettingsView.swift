@@ -16,6 +16,7 @@ struct AIEngineSettingsView: View {
                 VStack(spacing: 14) {
                     header
                     onDeviceCard
+                    phoneClawCard
                     Text("接入自己的模型 (Pro)")
                         .eyebrowStyle()
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -74,6 +75,40 @@ struct AIEngineSettingsView: View {
                     .background(Capsule().fill(AppColors.incomeGreen))
             } else {
                 Button("切换") { store.selectEngine(.appleIntelligence) }
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(AppColors.ink)
+            }
+        }
+        .padding(16)
+        .glassCard()
+    }
+
+    /// 第二张本地卡 — 走 phoneclaw:// URL scheme + group.app.glassbook.ios,
+    /// Glassbook 这边不抱 MLX 依赖,模型在 PhoneClaw 那边跑完写回 App Group,
+    /// 延迟 5-10 秒冷启, 之后同进程秒回。
+    private var phoneClawCard: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(hex: AIEngineStore.Engine.phoneclaw.tintHex))
+                Text("🦾").font(.system(size: 18))
+            }
+            .frame(width: 40, height: 40)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("PhoneClaw (本地 Gemma 4)")
+                    .font(.system(size: 13, weight: .medium))
+                Text("跨 App · 离线推理 · 需装 PhoneClaw")
+                    .font(.system(size: 10))
+                    .foregroundStyle(AppColors.ink3)
+            }
+            Spacer()
+            if store.selected == .phoneclaw {
+                Text("当前").font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Capsule().fill(AppColors.incomeGreen))
+            } else {
+                Button("切换") { store.selectEngine(.phoneclaw) }
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(AppColors.ink)
             }
