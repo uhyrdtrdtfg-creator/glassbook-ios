@@ -1,5 +1,7 @@
 # Glassbook
 
+[![CI](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/actions/workflows/ci.yml/badge.svg)](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/actions/workflows/ci.yml)
+
 > 一款**会呼吸的智能记账 App** · 玻璃拟态视觉 · 本地优先 · BYO LLM
 
 基于《Glassbook 产品规格说明书》+ 4 份 HTML 高保真交互稿 + Local-First Synthesis v2 方向文档,完整落地的 iOS 应用脚手架。
@@ -90,9 +92,9 @@ sudo cp .build/release/glassbook-mcp /usr/local/bin/
 
 | 模块 | 测试数 | 结果 |
 |---|---|---|
-| iOS(单测 + 视图渲染 + 视图 smoke + 准确率) | **268** | ✅ all pass |
+| iOS(单测 + 视图渲染 + 视图 smoke + 准确率) | **279** | ✅ all pass |
 | MCP Server(6 工具 + JSON-RPC + DataStore) | **25** | ✅ all pass |
-| **合计** | **293** | |
+| **合计** | **304** | |
 
 ### 覆盖率
 
@@ -129,6 +131,20 @@ sudo cp .build/release/glassbook-mcp /usr/local/bin/
 - 玻璃卡 `.ultraThinMaterial` + 白色高光 1px + 柔和下投影
 - 金额以 Int cents 存储,规避浮点漂移
 
+## 发布到 App Store
+
+完整流程(证书 / Profile / TestFlight / 审核)见 **[docs/RELEASE.md](docs/RELEASE.md)**。
+
+一次性配好 8 个 GitHub secret 后,每次发版只需要两行:
+
+```bash
+git tag v1.3.0
+git push origin v1.3.0
+```
+
+[`.github/workflows/release.yml`](.github/workflows/release.yml) 会自动 archive + 上传 TestFlight,并开一个 GitHub Release。
+日常 push / PR 由 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) 跑 279 个测试。
+
 ## 文档
 
 - [Glassbook 产品规格说明书](Glassbook-产品规格说明书.docx)
@@ -136,6 +152,7 @@ sudo cp .build/release/glassbook-mcp /usr/local/bin/
 - [glassbook-smart-import.html](glassbook-smart-import.html) · 智能识别 4 屏流程
 - [glassbook-feature-insights.html](glassbook-feature-insights.html) · 扩展功能图谱
 - [glassbook-advanced-features.html](glassbook-advanced-features.html) · Local-First Synthesis v2
+- [docs/RELEASE.md](docs/RELEASE.md) · 发布手册
 
 ## License
 

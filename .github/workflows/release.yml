@@ -1,0 +1,182 @@
+# Glassbook · Release → TestFlight
+#
+# 触发条件: 推送 v*.*.* 标签 (例: git tag v1.2.0 && git push --tags)
+#
+# 流程:
+#   1. 读出 tag (v1.2.0) → 写入 MARKETING_VERSION
+#   2. 导入签名证书 + Provisioning Profile (来自 secrets)
+#   3. xcodegen 生成 .xcodeproj
+#   4. xcodebuild archive + exportArchive → Glassbook.ipa
+#   5. altool 用 App Store Connect API Key 上传到 TestFlight
+#
+# 需要在仓库 Settings → Secrets and variables → Actions 里配好:
+#   APPLE_DEV_CERT_P12          (base64 的 .p12 证书)
+#   APPLE_DEV_CERT_PASSWORD     (导出 .p12 时设的密码)
+#   APPLE_DEV_PROFILE           (base64 的 .mobileprovision)
+#   APPLE_DEV_KEYCHAIN_PASSWORD (临时 keychain 密码,随便设)
+#   APP_STORE_CONNECT_API_KEY_ID    (如 ABCD123456)
+#   APP_STORE_CONNECT_API_ISSUER_ID (UUID 格式)
+#   APP_STORE_CONNECT_API_KEY       (base64 的 AuthKey_XXXX.p8)
+#
+# 详细步骤见 docs/RELEASE.md。
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '手动发布版本号 (如 1.2.0)'
+        required: true
+
+jobs:
+  upload-testflight:
+    name: Archive + upload to TestFlight
+    runs-on: macos-14
+    timeout-minutes: 45
+
+    env:
+      SCHEME: Glassbook
+      BUNDLE_ID: app.glassbook.ios
+      EXPORT_METHOD: app-store
+
+    defaults:
+      run:
+        working-directory: Glassbook
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        id: version
+        working-directory: .
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Releasing Glassbook v$VERSION"
+
+      - name: Select Xcode 15.4
+        working-directory: .
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Install xcodegen
+        working-directory: .
+        run: brew install xcodegen
+
+      # ---- 签名物料导入 ------------------------------------------------------
+      - name: Import signing certificate
+        env:
+          CERT_BASE64: ${{ secrets.APPLE_DEV_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_DEV_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_DEV_KEYCHAIN_PASSWORD }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          KEYCHAIN="$RUNNER_TEMP/glassbook.keychain-db"
+          echo "$CERT_BASE64" | base64 --decode -o "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$CERT_PATH" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          echo "KEYCHAIN=$KEYCHAIN" >> $GITHUB_ENV
+
+      - name: Import provisioning profile
+        env:
+          PROFILE_BASE64: ${{ secrets.APPLE_DEV_PROFILE }}
+        run: |
+          PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_DIR"
+          echo "$PROFILE_BASE64" | base64 --decode -o "$PROFILES_DIR/glassbook.mobileprovision"
+
+      # ---- 生成项目 + 写版本号 ---------------------------------------------
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Bump version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          BUILD: ${{ github.run_number }}
+        run: |
+          xcrun agvtool new-marketing-version "$VERSION"
+          xcrun agvtool new-version -all "$BUILD"
+
+      # ---- Archive + Export -------------------------------------------------
+      - name: Archive
+        run: |
+          xcodebuild archive \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Glassbook.xcarchive" \
+            -allowProvisioningUpdates \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            | xcpretty
+
+      - name: Export IPA
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store</string>
+            <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>uploadBitcode</key><false/>
+            <key>uploadSymbols</key><true/>
+            <key>signingStyle</key><string>automatic</string>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Glassbook.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -allowProvisioningUpdates \
+            | xcpretty
+
+      # ---- 上传到 TestFlight ------------------------------------------------
+      - name: Upload to TestFlight
+        env:
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          API_ISSUER: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          API_KEY:    ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$API_KEY" | base64 --decode -o ~/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8
+          IPA_PATH=$(find "$RUNNER_TEMP/export" -name "*.ipa" | head -1)
+          echo "Uploading $IPA_PATH"
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA_PATH" \
+            --apiKey "$API_KEY_ID" \
+            --apiIssuer "$API_ISSUER"
+
+      - name: Upload .xcarchive as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Glassbook-${{ steps.version.outputs.version }}.xcarchive
+          path: ${{ runner.temp }}/Glassbook.xcarchive
+          retention-days: 14
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Glassbook ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            📦 已上传到 TestFlight · build `${{ github.run_number }}`
+
+            测试完回归没问题后,去 App Store Connect 手动提交审核。
+            详见 [docs/RELEASE.md](../blob/main/docs/RELEASE.md)。

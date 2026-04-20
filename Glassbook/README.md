@@ -1,5 +1,7 @@
 # Glassbook iOS — V1.0 MVP Scaffold
 
+[![CI](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/actions/workflows/ci.yml/badge.svg)](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/actions/workflows/ci.yml)
+
 一款会呼吸的智能记账 App · SwiftUI · iOS 17+
 
 根据 `Glassbook-产品规格说明书.docx` V1.0 + 4 份 HTML 高保真稿搭建的可直接运行的 SwiftUI 工程脚手架。
@@ -121,5 +123,20 @@ Glassbook/
 - Glass 卡片基于 `.ultraThinMaterial`,在亮色 Aurora 上表现最好;spec §8.1 二期 Android 要换自绘模糊
 - iOS 17 `@Observable` 替代 `ObservableObject`,免 `@Published` 标记,`@Environment` 注入更简洁
 - Charts 仅用于环形图 (`SectorMark`);柱状图因需极细控制改用手写,与 spec mockup 一致
+
+## 发布到 App Store
+
+完整流程(证书 / Profile / TestFlight / 审核)见 **[../docs/RELEASE.md](../docs/RELEASE.md)**。
+
+一次性配好 8 个 GitHub secret 后,每次发版只需要两行:
+
+```bash
+git tag v1.3.0
+git push origin v1.3.0
+```
+
+仓库根目录 `.github/workflows/release.yml` 会自动 archive + 上传 TestFlight。
+
+---
 
 Built with restraint, shipped with care.

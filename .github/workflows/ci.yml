@@ -1,0 +1,61 @@
+# Glassbook · CI
+# 每次 push / PR 都跑 xcodegen + 单元测试,保底 279 个测试全绿。
+# Watch target 需要 watchOS 11.x SDK,CI 机器通常没装,所以用 GlassbookCI scheme
+# (只包含 iOS + Tests,跳过 Watch)。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Build + Test (GlassbookCI)
+    runs-on: macos-14
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: Glassbook
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 15.4
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+        working-directory: .
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+        working-directory: .
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Pick an available iPhone simulator
+        run: |
+          # CI runners' simulator names drift, pick the first available iPhone
+          # simulator instead of hard-coding "iPhone 15".
+          DEVICE=$(xcrun simctl list devices available | grep -oE "iPhone [0-9]+( Pro)?( Max)?" | head -1)
+          echo "DEVICE=$DEVICE" >> $GITHUB_ENV
+          echo "Using $DEVICE"
+
+      - name: Run tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -scheme GlassbookCI \
+            -destination "platform=iOS Simulator,name=${DEVICE}" \
+            -resultBundlePath TestResults.xcresult \
+            | xcpretty
+        env:
+          NSUnbufferedIO: YES
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: Glassbook/TestResults.xcresult
+          retention-days: 7
