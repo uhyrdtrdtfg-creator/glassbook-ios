@@ -227,11 +227,47 @@ final class AppStore {
         guard let context else { return }
         context.insert(SDTransaction(from: tx))
         try? context.save()
+        syncSnapshots()
+    }
+
+    /// After any mutation we push two derived views of the store out:
+    /// - App Group `SharedSnapshot` (for Widget + Watch)
+    /// - iCloud Drive JSON mirror (for the Mac `glassbook-mcp` process)
+    private func syncSnapshots() {
+        SharedStorage.write(buildSharedSnapshot())
+        _ = iCloudExporter.export(
+            transactions: transactions,
+            subscriptions: subscriptions,
+            budget: budget
+        )
+    }
+
+    private func buildSharedSnapshot() -> SharedSnapshot {
+        let recent = Array(transactionsInMonth(Date()).prefix(5))
+        let fmt = DateFormatter()
+        fmt.locale = .init(identifier: "zh_CN")
+        fmt.dateFormat = "M月d日 HH:mm"
+        let top = expensesByCategory(in: Date()).first?.0
+        return SharedSnapshot(
+            monthExpenseCents: thisMonthExpenseCents,
+            monthBudgetCents: budget.monthlyTotalCents,
+            dailyAverageCents: thisMonthDailyAverageCents,
+            topCategoryName: top?.name ?? "—",
+            topCategoryEmoji: top?.emoji ?? "✨",
+            recentTransactions: recent.map {
+                .init(merchant: $0.merchant,
+                      emoji: Category.by($0.categoryID).emoji,
+                      cents: $0.amountCents,
+                      timeLabel: fmt.string(from: $0.timestamp))
+            },
+            updatedAt: .now
+        )
     }
     private func persistBatch(_ batch: SDImportBatch) {
         guard let context else { return }
         context.insert(batch)
         try? context.save()
+        syncSnapshots()
     }
 
     // MARK: - Data management (wipe / reset)
@@ -327,6 +363,8 @@ final class AppStore {
         if let b = (try? context.fetch(budgetDesc))?.first {
             budget = b.toStruct()
         }
+        // Fresh boot — push current state to external surfaces.
+        syncSnapshots()
     }
 
     // MARK: - Account mutations

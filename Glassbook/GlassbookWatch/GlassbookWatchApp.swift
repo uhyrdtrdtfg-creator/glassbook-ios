@@ -2,11 +2,16 @@ import SwiftUI
 
 @main
 struct GlassbookWatchApp: App {
-    @State private var sharedSnapshot = WatchSnapshot.placeholder
+    @State private var sharedSnapshot = WatchSnapshot.load()
 
     var body: some Scene {
         WindowGroup {
             WatchRoot(snapshot: $sharedSnapshot)
+                .onAppear {
+                    // Re-read whenever the watch app comes foreground — the
+                    // iOS companion may have written a fresher snapshot.
+                    sharedSnapshot = WatchSnapshot.load()
+                }
         }
     }
 }
@@ -43,4 +48,20 @@ struct WatchSnapshot: Codable, Hashable {
             .init(merchant: "打车回家",   emoji: "🚇", cents: 4200, timeLabel: "前天 22:05"),
         ]
     )
+
+    /// Read the App Group snapshot the iOS companion writes after each
+    /// mutation. Falls back to the placeholder on first install.
+    static func load() -> WatchSnapshot {
+        guard let shared = SharedStorage.read() else { return .placeholder }
+        return WatchSnapshot(
+            monthExpenseCents: shared.monthExpenseCents,
+            monthBudgetCents: max(shared.monthBudgetCents, 1),
+            dailyAverageCents: shared.dailyAverageCents,
+            topCategoryName: shared.topCategoryName,
+            topCategoryEmoji: shared.topCategoryEmoji,
+            recentTransactions: shared.recentTransactions.map {
+                .init(merchant: $0.merchant, emoji: $0.emoji, cents: $0.cents, timeLabel: $0.timeLabel)
+            }
+        )
+    }
 }

@@ -59,12 +59,16 @@ targets:
       - path: GlassbookWidget
         excludes:
           - "Info.plist"
+          - "GlassbookWidget.entitlements"
       # Share ActivityAttributes so widget UI can decode Live Activity state.
       - path: Glassbook/ActivityAttributes
+      # Shared App Group storage + snapshot struct.
+      - path: Glassbook/SharedTypes
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.glassbook.ios.widget
         INFOPLIST_FILE: GlassbookWidget/Info.plist
+        CODE_SIGN_ENTITLEMENTS: GlassbookWidget/GlassbookWidget.entitlements
         SKIP_INSTALL: YES
         TARGETED_DEVICE_FAMILY: "1"
 
@@ -76,10 +80,14 @@ targets:
       - path: GlassbookWatch
         excludes:
           - "Info.plist"
+          - "GlassbookWatch.entitlements"
+      # Shared snapshot types so watchOS can decode what iOS wrote to the App Group.
+      - path: Glassbook/SharedTypes
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.glassbook.ios.watchkitapp
         INFOPLIST_FILE: GlassbookWatch/Info.plist
+        CODE_SIGN_ENTITLEMENTS: GlassbookWatch/GlassbookWatch.entitlements
         SKIP_INSTALL: NO
         TARGETED_DEVICE_FAMILY: "4"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

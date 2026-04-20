@@ -48,13 +48,29 @@ struct GlassbookProvider: TimelineProvider {
     func placeholder(in context: Context) -> GlassbookEntry { .placeholder }
 
     func getSnapshot(in context: Context, completion: @escaping (GlassbookEntry) -> Void) {
-        completion(.placeholder)
+        completion(liveEntry())
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<GlassbookEntry>) -> Void) {
         // Refresh every 30 min — widgets are budget-constrained by the system anyway.
         let next = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date()
-        completion(Timeline(entries: [.placeholder], policy: .after(next)))
+        completion(Timeline(entries: [liveEntry()], policy: .after(next)))
+    }
+
+    /// Try the shared App Group snapshot first; fall back to the placeholder
+    /// when the user hasn't opened the iOS app since install.
+    private func liveEntry() -> GlassbookEntry {
+        guard let s = SharedStorage.read() else { return .placeholder }
+        return GlassbookEntry(
+            date: Date(),
+            monthExpenseCents: s.monthExpenseCents,
+            monthBudgetCents: max(s.monthBudgetCents, 1),
+            dailyAverageCents: s.dailyAverageCents,
+            recentTransactions: s.recentTransactions.prefix(5).map {
+                .init(merchant: $0.merchant, emoji: $0.emoji, cents: $0.cents)
+            },
+            topCategory: s.topCategoryName
+        )
     }
 }
 

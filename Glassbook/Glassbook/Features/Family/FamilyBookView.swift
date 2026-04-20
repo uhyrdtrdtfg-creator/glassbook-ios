@@ -33,16 +33,36 @@ struct FamilyBookView: View {
     }
 
     private var addMemberButton: some View {
-        Button { showAddMember = true } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "person.badge.plus").font(.system(size: 14))
-                Text("邀请新成员").font(.system(size: 13, weight: .medium))
+        VStack(spacing: 10) {
+            Button { showAddMember = true } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "person.badge.plus").font(.system(size: 14))
+                    Text("手动添加成员").font(.system(size: 13, weight: .medium))
+                }
+                .foregroundStyle(AppColors.ink)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .glassCard(radius: 14)
             }
-            .foregroundStyle(AppColors.ink)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .glassCard(radius: 14)
+            .buttonStyle(.plain)
+            Button {
+                Task { await openCloudKitInvite() }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "icloud.and.arrow.up").font(.system(size: 14))
+                    Text("iCloud 邀请 · CKShare").font(.system(size: 13, weight: .medium))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(RoundedRectangle(cornerRadius: 14).fill(AppColors.ink))
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+    }
+
+    @MainActor
+    private func openCloudKitInvite() async {
+        guard let host = UIKitHost.rootViewController else { return }
+        await FamilySharingService.presentInvite(from: host)
     }
 
     private var header: some View {
