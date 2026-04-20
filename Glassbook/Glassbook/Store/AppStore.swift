@@ -234,6 +234,80 @@ final class AppStore {
         try? context.save()
     }
 
+    // MARK: - Data management (wipe / reset)
+
+    /// Delete every transaction, account, subscription, goal, budget row, and
+    /// import-batch record on disk. Keeps merchant-learning (user-tuned) and
+    /// user preferences (name, avatar, BYO LLM keys) alone. The in-memory
+    /// state is cleared synchronously so the UI updates instantly.
+    func wipeAll() {
+        transactions = []
+        accounts = []
+        subscriptions = []
+        goals = []
+        budget = .default
+        guard let context else { return }
+        do {
+            try context.delete(model: SDTransaction.self)
+            try context.delete(model: SDAccount.self)
+            try context.delete(model: SDBudget.self)
+            try context.delete(model: SDImportBatch.self)
+            try context.delete(model: SDSubscription.self)
+            try context.delete(model: SDSavingsGoal.self)
+            try context.save()
+        } catch {
+            print("⚠️ wipeAll failed: \(error)")
+        }
+    }
+
+    /// Clear just the transaction history (and their import batches). Leaves
+    /// accounts / subscriptions / goals / budget intact.
+    func wipeTransactions() {
+        transactions = []
+        guard let context else { return }
+        try? context.delete(model: SDTransaction.self)
+        try? context.delete(model: SDImportBatch.self)
+        try? context.save()
+    }
+
+    func wipeSubscriptions() {
+        subscriptions = []
+        guard let context else { return }
+        try? context.delete(model: SDSubscription.self)
+        try? context.save()
+    }
+
+    func wipeGoals() {
+        goals = []
+        guard let context else { return }
+        try? context.delete(model: SDSavingsGoal.self)
+        try? context.save()
+    }
+
+    func wipeMerchantLearning() {
+        guard let context else { return }
+        try? context.delete(model: SDMerchantLearning.self)
+        try? context.save()
+    }
+
+    /// Nuke everything then re-seed the sample set (Roger / 62 tx / 3 accounts /
+    /// 7 subs / 4 goals). Useful for scaffold demos and "factory reset".
+    func resetToDemo() {
+        wipeAll()
+        wipeMerchantLearning()
+        if let context {
+            AppSeed.seed(context: context)
+            reload()
+        } else {
+            // In-memory path (preview target).
+            transactions = SampleData.transactions
+            accounts = SampleData.accounts
+            subscriptions = SampleData.subscriptions
+            goals = SampleData.savingsGoals
+            budget = .default
+        }
+    }
+
     private func reload() {
         guard let context else { return }
         let txDesc = FetchDescriptor<SDTransaction>(sortBy: [SortDescriptor(\.timestamp, order: .reverse)])

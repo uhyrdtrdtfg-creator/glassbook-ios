@@ -17,6 +17,7 @@ struct ProfileView: View {
     @State private var showFamily = false
     @State private var showAdvisor = false
     @State private var showExport = false
+    @State private var showDataManagement = false
 
     var body: some View {
         ScrollView {
@@ -61,6 +62,9 @@ struct ProfileView: View {
                           action: { showSmartImport = true }),
                     .init(icon: "clock.arrow.circlepath", label: "历史导入", value: "可回滚 7 天"),
                     .init(icon: "arrow.down.doc", label: "数据导出", value: "CSV / PDF"),
+                    .init(icon: "externaldrive.badge.minus", label: "清除数据 / 重置演示",
+                          value: "\(store.transactions.count) 笔交易",
+                          action: { showDataManagement = true }),
                 ])
 
                 menuGroup(title: "开发者 · Pro", rows: [
@@ -111,6 +115,7 @@ struct ProfileView: View {
             AdvisorView().environment(store)
         }
         .sheet(isPresented: $showExport)        { sheet { InvoiceExportView() } }
+        .sheet(isPresented: $showDataManagement) { sheet { DataManagementView() } }
         .fullScreenCover(isPresented: $showSmartImport) {
             SmartImportFlow(isPresented: $showSmartImport)
         }
