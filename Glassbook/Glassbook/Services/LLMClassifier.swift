@@ -62,14 +62,13 @@ enum LLMClassifier {
         let store = AIEngineStore.shared
         let engine = store.selected
 
-        // Apple Intelligence + PhoneClaw don't have HTTP endpoints we can
-        // dispatch through LLMClient. AI routes to Foundation Models (no public
-        // text API yet), PhoneClaw uses a URL scheme bridge. Either way,
-        // surface as `.notConfigured` so the user picks a real BYO engine.
-        switch engine {
-        case .appleIntelligence, .phoneclaw:
+        // Apple Intelligence has no public text API yet, so it can't classify —
+        // surface as `.notConfigured` to push users to a real BYO engine.
+        // PhoneClaw DOES work: LLMClient.chat routes `.phoneclaw` through
+        // PhoneClawClient (URL scheme + App Group), returns real text, so
+        // we let it fall through to the normal dispatch below.
+        if engine == .appleIntelligence {
             throw Failure.notConfigured
-        default: break
         }
 
         // Each row gets a small integer id so the model can line up its output

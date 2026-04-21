@@ -52,11 +52,22 @@ final class AdvisorChatService {
             isThinking = true
         }
 
-        // 1. Route the question. If a real API key is configured, call the LLM.
-        //    Otherwise, handle it locally with a deterministic heuristic.
+        // 1. Route the question. If a real LLM is reachable, call it; otherwise
+        //    fall back to the deterministic heuristic.
+        //    - Apple Intelligence: no public text API → local
+        //    - PhoneClaw: runs via URL scheme bridge, NO api key needed → remote
+        //    - All BYO cloud engines: require an api key → local if missing
         let engine = engineStore.selected
         let hasKey = engineStore.apiKey(for: engine)?.isEmpty == false
-        let useLocal = engine == .appleIntelligence || !hasKey
+        let useLocal: Bool
+        switch engine {
+        case .appleIntelligence:
+            useLocal = true
+        case .phoneclaw:
+            useLocal = false
+        default:
+            useLocal = !hasKey
+        }
 
         let reply: Message
         if useLocal {
