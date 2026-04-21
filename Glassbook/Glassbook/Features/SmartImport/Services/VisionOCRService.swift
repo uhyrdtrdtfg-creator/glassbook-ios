@@ -8,7 +8,17 @@ enum VisionOCRService {
     enum OCRError: Error { case invalidImage, visionFailed(String) }
 
     /// Returns lines in natural reading order (top-to-bottom, left-to-right).
-    static func recognize(image: UIImage) async throws -> [String] {
+    ///
+    /// `languageCorrection` defaults to **true** — that's what bill screenshots
+    /// (支付宝 / 微信 / 招行) want because their merchant names are regular
+    /// Chinese words and Apple's language model cleans up legit OCR mistakes.
+    ///
+    /// Pass `false` for paper-receipt / menu scans where text is dense with
+    /// proper nouns, SKUs, and loyalty-card numbers that the language model
+    /// wrongly "corrects" into common words (earlier: 海底捞 → 海底劳). Those
+    /// callers hand the raw output to `ReceiptOCRService` which pipes it
+    /// through the selected BYO LLM for context-aware fixup instead.
+    static func recognize(image: UIImage, languageCorrection: Bool = true) async throws -> [String] {
         guard let cg = image.cgImage ?? VisionOCRService.cgImage(from: image) else {
             throw OCRError.invalidImage
         }
@@ -30,11 +40,7 @@ enum VisionOCRService {
             }
             request.recognitionLevel = .accurate
             request.recognitionLanguages = ["zh-Hans", "en-US"]
-            // Language correction 对通用文字有益,但对收据场景**有害**:
-            // 商户名/菜名/SKU 经常是专有名词,被语言模型"纠"成常见词后反而错
-            // (海底捞 → 海底劳 / 海底捞面 这种). 关掉拿原始识别结果,
-            // 后面交给 PhoneClaw (Gemma 4) 做上下文感知的纠错 + 结构化抽取.
-            request.usesLanguageCorrection = false
+            request.usesLanguageCorrection = languageCorrection
 
             let handler = VNImageRequestHandler(cgImage: cg, options: [:])
             Task.detached(priority: .userInitiated) {

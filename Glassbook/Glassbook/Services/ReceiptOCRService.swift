@@ -37,8 +37,9 @@ enum ReceiptOCRService {
 
     /// 两段式:Vision 拿原始文本行 → 若配了可用的 LLM 引擎就走 LLM 结构化抽取
     /// (上下文感知, 能纠 OCR 错字, 能处理多列对齐), 否则退回原来的正则 heuristic.
+    /// Language correction 关掉,因为收据里 SKU / 专有名词多,iOS 语言模型会乱纠。
     static func recognize(image: UIImage) async throws -> Result {
-        let lines = try await VisionOCRService.recognize(image: image)
+        let lines = try await VisionOCRService.recognize(image: image, languageCorrection: false)
 
         if let aiResult = await tryLLMExtract(lines: lines) {
             return aiResult
