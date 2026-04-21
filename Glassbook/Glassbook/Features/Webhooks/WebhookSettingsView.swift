@@ -477,6 +477,14 @@ private struct EndpointEditSheet: View {
                 .scrollContentBackground(.hidden)
                 .frame(minHeight: 160)
                 .disabled(!endpoint.useCustomBody || endpoint.httpMethod == .get)
+                // Turn off iOS auto-features so a JSON body doesn't get its
+                // ASCII " / ' / - silently replaced with curly variants.
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .onChange(of: endpoint.bodyTemplate) { _, new in
+                    let cleaned = new.normalizingSmartPunctuation()
+                    if cleaned != new { endpoint.bodyTemplate = cleaned }
+                }
         }
     }
 

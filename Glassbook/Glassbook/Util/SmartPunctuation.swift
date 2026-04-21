@@ -1,30 +1,26 @@
 import Foundation
-import UIKit
 
 /// iOS's "smart" punctuation rewrites straight quotes / dashes into curly
 /// variants as the user types — great for chat, fatal for JSON / URL / API-key
 /// / regex input. Webhook BODY templates are the obvious break: one curly
 /// quote and the payload fails to parse on Slack / 飞书 / 钉钉.
 ///
-/// Two-layer defense:
-///   1. Global appearance — `UITextField` + `UITextView` ship with smart
-///      quotes / dashes / insert-delete disabled from launch. SwiftUI's
-///      `TextField` / `TextEditor` both inherit.
+/// We used to also call `UITextField.appearance().smartQuotesType = .no` at
+/// app launch, but that threw on some iOS versions when state-restored text
+/// fields were already in the responder chain before `GlassbookApp.init()`
+/// finished — classic SIGABRT in `-setSmartQuotesType:` on a concrete
+/// UITextField. Ripped that out. Two remaining layers:
+///
+///   1. Per-field SwiftUI modifiers (`.autocorrectionDisabled()`) on structured
+///      inputs — webhook template editor, API key / base URL fields. Kills
+///      autocorrect and, side-effect, most curly-quote substitutions.
 ///   2. `String.normalizingSmartPunctuation()` — belt-and-suspenders sweep on
-///      save paths that carry structured text (webhook templates, base URLs,
-///      api keys). Handles text that was already typed on a previous build
-///      where smart punctuation was still on.
+///      save paths. Runs on any already-typed text that still carries curly
+///      quotes, so historical data self-heals the first time you edit + save.
 enum SmartPunctuation {
-
-    /// Call once at app launch. Affects every text input in the app.
-    static func disableGlobally() {
-        UITextField.appearance().smartQuotesType = .no
-        UITextField.appearance().smartDashesType = .no
-        UITextField.appearance().smartInsertDeleteType = .no
-        UITextView.appearance().smartQuotesType = .no
-        UITextView.appearance().smartDashesType = .no
-        UITextView.appearance().smartInsertDeleteType = .no
-    }
+    /// No-op placeholder — the global appearance hack is gone. Left as a stub
+    /// so old call sites compile while we migrate callers to per-field modifiers.
+    static func disableGlobally() {}
 }
 
 extension String {
