@@ -87,6 +87,14 @@ struct ViewSmokeTests {
     @Test func editTransactionSheetBuilds() {
         _ = EditTransactionSheet(txID: UUID()).environment(store)
     }
+    @Test func richTxFormViewBuilds() {
+        _ = RichTxFormView(
+            title: "Test", saveLabel: "Save",
+            initial: .init(),
+            showDatePicker: true,
+            onCancel: {}, onSave: { _ in }
+        )
+    }
     @Test func lockViewBuilds() {
         _ = LockView().environment(lock)
     }

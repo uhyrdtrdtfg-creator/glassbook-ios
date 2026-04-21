@@ -35,6 +35,11 @@ struct SmartImportFlow: View {
                             platform = filterHint ?? .alipay
                             step = .scanning
                             runRealScan(image: image)
+                        },
+                        onRealImages: { images, filterHint in
+                            platform = filterHint ?? .alipay
+                            step = .scanning
+                            runRealScanBatch(images: images)
                         }
                     )
                 case .scanning:
@@ -160,6 +165,85 @@ struct SmartImportFlow: View {
         }
     }
 
+    /// Batch path: user picked N images at once. Run Vision OCR on each image
+    /// in parallel (Swift's async let can't be used in a loop, so we fan out
+    /// via a TaskGroup), pick the best parser per image, merge all rows, then
+    /// dedup both intra-batch (two screenshots of the same list overlap) and
+    /// against existing transactions. One confirm screen with all rows.
+    private func runRealScanBatch(images: [UIImage]) {
+        progress = 0
+        Task {
+            do {
+                // Fan out OCR across images. Each returns (index, lines) so we
+                // can reassemble in original order and keep progress honest.
+                let ocrResults: [(Int, [String])] = try await withThrowingTaskGroup(of: (Int, [String]).self) { group in
+                    for (idx, img) in images.enumerated() {
+                        group.addTask {
+                            let lines = try await VisionOCRService.recognize(image: img)
+                            return (idx, lines)
+                        }
+                    }
+                    var collected: [(Int, [String])] = []
+                    var finished = 0
+                    for try await pair in group {
+                        collected.append(pair)
+                        finished += 1
+                        let p = Double(finished) / Double(max(1, images.count)) * 0.9
+                        await MainActor.run { withAnimation { progress = p } }
+                    }
+                    return collected.sorted { $0.0 < $1.0 }
+                }
+
+                var allParsed: [PendingImportRow] = []
+                var lineSum = 0
+                var detectedPlatform: ImportBatch.Platform? = nil
+                for (_, lines) in ocrResults {
+                    lineSum += lines.count
+                    let parser = ParserRegistry.pick(for: lines)
+                    if detectedPlatform == nil { detectedPlatform = parser.platform }
+                    allParsed.append(contentsOf: parser.parse(lines: lines))
+                }
+
+                await MainActor.run { withAnimation { progress = 1.0 } }
+
+                // Intra-batch dedup first (two screenshots of the same list
+                // overlap), then compare against existing store transactions.
+                let intra = intraBatchDedup(allParsed)
+                let deduped = DedupEngine.markDuplicates(intra, against: store.transactions)
+                platform = detectedPlatform ?? .alipay
+                await MainActor.run { advance(after: deduped, gotLines: lineSum) }
+            } catch {
+                await MainActor.run {
+                    emptyReason = "Vision 识别失败:\(error.localizedDescription)"
+                    withAnimation(.easeInOut) { step = .empty }
+                }
+            }
+        }
+    }
+
+    /// Mark later rows with the same (amountCents, merchant, timestamp to the
+    /// minute) as duplicates of the first occurrence and auto-deselect them.
+    /// User can still tick them back on in the confirm screen if they really
+    /// are separate transactions that happened at the same moment.
+    private func intraBatchDedup(_ rows: [PendingImportRow]) -> [PendingImportRow] {
+        var seen: Set<String> = []
+        var out: [PendingImportRow] = []
+        for row in rows {
+            let minuteBucket = Int(row.timestamp.timeIntervalSince1970 / 60)
+            let key = "\(row.amountCents)|\(minuteBucket)|\(row.merchant)"
+            if seen.contains(key) {
+                var dup = row
+                dup.isDuplicate = true
+                dup.isSelected = false
+                out.append(dup)
+            } else {
+                seen.insert(key)
+                out.append(row)
+            }
+        }
+        return out
+    }
+
     /// Common post-parse branch: show confirm if we got rows, empty if not.
     private func advance(after rows: [PendingImportRow], gotLines: Int) {
         if rows.isEmpty {
@@ -206,13 +290,20 @@ struct SmartImportEntryScreen: View {
     /// User tapped a specific platform's row — runs the hard-coded demo bill
     /// through that platform's parser. No real OCR.
     var onDemo: (ImportBatch.Platform) -> Void
-    /// User picked a real image. OCR + auto-detect runs on the pixels.
-    /// `filterHint` indicates whether the picker was filtered to screenshots
-    /// (so we can bias toward bill-style layouts) — nil = any image.
+    /// Single-image real OCR — still used by the "识别最新截屏" one-tap path,
+    /// since there's only ever one "latest" screenshot.
     var onRealImage: (UIImage, ImportBatch.Platform?) -> Void
+    /// Multi-image real OCR — PhotosPicker lets the user pick up to 10
+    /// screenshots, each gets its own OCR pass, results merge into one
+    /// confirm sheet with cross-image dedup.
+    var onRealImages: ([UIImage], ImportBatch.Platform?) -> Void
 
-    @State private var pickerItem: PhotosPickerItem?
+    /// PhotosPicker accepts an array; we treat 0 / 1 / many uniformly by
+    /// handing everything to `onRealImages`. Kept as `[PhotosPickerItem]`
+    /// rather than `PhotosPickerItem?` so `maxSelectionCount > 1` works.
+    @State private var pickerItems: [PhotosPickerItem] = []
     @State private var pickerError: String?
+    @State private var pickerLoading: Bool = false
     @State private var latestPreview: LatestScreenshotService.Result?
     @State private var latestError: String?
     @State private var latestLoading: Bool = false
@@ -235,27 +326,47 @@ struct SmartImportEntryScreen: View {
             }
         }
         .safeAreaPadding(.top, 8)
-        .onChange(of: pickerItem) { _, item in
-            let hint: ImportBatch.Platform? = nil
-            Task { await handle(item: item, hint: hint) }
+        .onChange(of: pickerItems) { _, items in
+            guard !items.isEmpty else { return }
+            Task { await handle(items: items, hint: nil) }
         }
     }
 
-    /// Load the picked image data and forward it to the flow for real OCR.
-    private func handle(item: PhotosPickerItem?, hint: ImportBatch.Platform?) async {
-        guard let item else { return }
-        do {
-            guard let data = try await item.loadTransferable(type: Data.self),
-                  let img = UIImage(data: data) else {
-                throw NSError(domain: "SmartImport", code: 1,
-                              userInfo: [NSLocalizedDescriptionKey: "无法读取所选图片"])
+    /// Load every picked image concurrently, then forward the batch to the
+    /// flow for OCR. One failed image is surfaced inline but doesn't abort
+    /// the rest — better to scan 9 of 10 than fail the whole pick.
+    private func handle(items: [PhotosPickerItem], hint: ImportBatch.Platform?) async {
+        await MainActor.run { pickerLoading = true; pickerError = nil }
+        defer { Task { @MainActor in pickerLoading = false; pickerItems = [] } }
+
+        var loaded: [UIImage] = []
+        var failures: Int = 0
+        await withTaskGroup(of: UIImage?.self) { group in
+            for item in items {
+                group.addTask {
+                    do {
+                        guard let data = try await item.loadTransferable(type: Data.self),
+                              let img = UIImage(data: data) else { return nil }
+                        return img
+                    } catch {
+                        return nil
+                    }
+                }
             }
-            await MainActor.run {
-                pickerError = nil
-                onRealImage(img, hint)
+            for await img in group {
+                if let img { loaded.append(img) } else { failures += 1 }
             }
-        } catch {
-            await MainActor.run { pickerError = error.localizedDescription }
+        }
+
+        await MainActor.run {
+            if loaded.isEmpty {
+                pickerError = "这些图片都读不出来,换一批再试"
+                return
+            }
+            if failures > 0 {
+                pickerError = "其中 \(failures) 张读取失败,跳过继续扫描剩下 \(loaded.count) 张"
+            }
+            onRealImages(loaded, hint)
         }
     }
 
@@ -424,17 +535,29 @@ struct SmartImportEntryScreen: View {
     }
 
     private var pickerButton: some View {
-        PhotosPicker(selection: $pickerItem, matching: .images) {
+        PhotosPicker(selection: $pickerItems,
+                     maxSelectionCount: 10,
+                     matching: .images) {
             HStack(spacing: 10) {
-                Image(systemName: "photo.on.rectangle.angled")
-                    .font(.system(size: 14))
-                    .foregroundStyle(AppColors.ink2)
-                    .frame(width: 28, height: 28)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.55)))
+                ZStack {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppColors.ink2)
+                    if pickerLoading {
+                        Circle().trim(from: 0, to: 0.65)
+                            .stroke(AppColors.ink, lineWidth: 1.5)
+                            .frame(width: 22, height: 22)
+                            .rotationEffect(.degrees(pickerLoading ? 360 : 0))
+                            .animation(.linear(duration: 0.9).repeatForever(autoreverses: false),
+                                       value: pickerLoading)
+                    }
+                }
+                .frame(width: 28, height: 28)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.55)))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("从相册选取别的图").font(.system(size: 13, weight: .medium))
+                    Text("从相册批量选图").font(.system(size: 13, weight: .medium))
                         .foregroundStyle(AppColors.ink)
-                    Text("手动挑一张 · 适合老截屏或实体小票")
+                    Text("最多 10 张 · 一次 OCR + 跨图去重 + 合并确认")
                         .font(.system(size: 10))
                         .foregroundStyle(AppColors.ink3)
                 }
@@ -448,6 +571,7 @@ struct SmartImportEntryScreen: View {
         }
         .buttonStyle(.plain)
         .glassCard(radius: 14)
+        .disabled(pickerLoading)
     }
 
     private func refreshLatestPreview() async {
@@ -1018,7 +1142,10 @@ struct SmartImportDoneScreen: View {
 #Preview("Entry") {
     ZStack {
         AuroraBackground(palette: .importBlue)
-        SmartImportEntryScreen(onCancel: {}, onDemo: { _ in }, onRealImage: { _, _ in })
+        SmartImportEntryScreen(onCancel: {},
+                               onDemo: { _ in },
+                               onRealImage: { _, _ in },
+                               onRealImages: { _, _ in })
     }
 }
 #Preview("Empty") {
