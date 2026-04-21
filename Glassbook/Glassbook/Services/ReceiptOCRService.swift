@@ -35,8 +35,14 @@ enum ReceiptOCRService {
 
     // MARK: - Public
 
+    /// 两段式:Vision 拿原始文本行 → 若配了可用的 LLM 引擎就走 LLM 结构化抽取
+    /// (上下文感知, 能纠 OCR 错字, 能处理多列对齐), 否则退回原来的正则 heuristic.
     static func recognize(image: UIImage) async throws -> Result {
         let lines = try await VisionOCRService.recognize(image: image)
+
+        if let aiResult = await tryLLMExtract(lines: lines) {
+            return aiResult
+        }
         return parse(lines: lines)
     }
 
@@ -111,6 +117,141 @@ enum ReceiptOCRService {
             suggestedCategory: category,
             rawText: lines
         )
+    }
+
+    // MARK: - LLM extraction
+
+    /// Pipes Vision's raw text lines through the currently-selected LLM engine
+    /// (PhoneClaw / OpenAI / Claude / …) for structured receipt extraction.
+    /// Returns `nil` when:
+    ///   - no engine is usable (e.g. Apple Intelligence, or BYO with no key)
+    ///   - the model call throws (network / timeout / cancellation)
+    ///   - the JSON response can't be decoded
+    /// Caller falls back to the regex `parse(lines:)` path in any of those.
+    private static func tryLLMExtract(lines: [String]) async -> Result? {
+        guard !lines.isEmpty else { return nil }
+        let engine = AIEngineStore.shared.selected
+
+        // Same gate as LLMClient.chat — skip engines that don't have a working
+        // dispatch (AppleIntelligence has no public text API yet; BYO cloud
+        // engines need an api key).
+        switch engine {
+        case .appleIntelligence:
+            return nil
+        case .phoneclaw:
+            break  // PhoneClawClient handles the rest
+        default:
+            guard AIEngineStore.shared.apiKey(for: engine)?.isEmpty == false else {
+                return nil
+            }
+        }
+
+        let year = Calendar.current.component(.year, from: Date())
+        let rawJoined = lines.enumerated()
+            .map { "\($0.offset + 1). \($0.element)" }
+            .joined(separator: "\n")
+
+        let systemPrompt = """
+        你是收据结构化助手。输入是 Vision OCR 对一张中文/英文收据或账单的原始识别结果(每行一条)。
+        识别结果可能有错字(例如"海底涝"应为"海底捞","夸辣锅"应为"麻辣锅"),结合上下文纠正。
+        严格按下列 JSON 格式输出,不要任何解释文字,不要 markdown 代码块:
+        {
+          "merchant": "商户名(无则 null)",
+          "total_cents": 金额(以分为单位的整数,无则 null),
+          "date": "YYYY-MM-DD(无则 null, 年份缺失时按 \(year) 推断)",
+          "items": [
+            {"name": "条目名", "amount_cents": 分}
+          ]
+        }
+        amount_cents 规则:¥12.00 → 1200, ¥6.5 → 650。items 不要包含合计/小计/服务费/税费这些汇总行。
+        """
+
+        let userPrompt = "OCR 原文:\n\(rawJoined)"
+
+        let reply: String
+        do {
+            reply = try await LLMClient.chat(
+                engine: engine,
+                messages: [
+                    .init(role: "system", content: systemPrompt),
+                    .init(role: "user", content: userPrompt),
+                ]
+            )
+        } catch {
+            return nil
+        }
+
+        guard let payload = decodeLLMJSON(reply) else { return nil }
+
+        // Assemble the public `Result` with local classifier + raw text preserved —
+        // the UI still wants rawText so the user can inspect what Vision saw.
+        let merchant = payload.merchant?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let items: [Result.LineItem] = (payload.items ?? []).compactMap { item in
+            guard let name = item.name?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !name.isEmpty,
+                  let cents = item.amount_cents, cents > 0 else { return nil }
+            return Result.LineItem(name: name, amountCents: cents)
+        }
+        let date: Date = payload.date.flatMap(parseISODate) ?? Date()
+        let category: Category.Slug? = merchant.flatMap {
+            MerchantClassifier.shared.classify(merchant: $0)
+        }
+
+        return Result(
+            merchant: (merchant?.isEmpty == true) ? nil : merchant,
+            amountCents: payload.total_cents,
+            date: date,
+            items: items,
+            suggestedCategory: category,
+            rawText: lines
+        )
+    }
+
+    private struct LLMPayload: Decodable {
+        let merchant: String?
+        let total_cents: Int?
+        let date: String?
+        let items: [LLMItem]?
+    }
+
+    private struct LLMItem: Decodable {
+        let name: String?
+        let amount_cents: Int?
+    }
+
+    /// Models sometimes wrap JSON in ``` fences or prefix it with "好的,这是..." —
+    /// pull out the first {...} block before decoding.
+    private static func decodeLLMJSON(_ raw: String) -> LLMPayload? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Strip markdown code fences if present.
+        let stripped: String = {
+            if trimmed.hasPrefix("```") {
+                let withoutFences = trimmed
+                    .replacingOccurrences(of: "```json", with: "")
+                    .replacingOccurrences(of: "```JSON", with: "")
+                    .replacingOccurrences(of: "```", with: "")
+                return withoutFences.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            return trimmed
+        }()
+        // Isolate the outermost JSON object.
+        guard let startIdx = stripped.firstIndex(of: "{"),
+              let endIdx = stripped.lastIndex(of: "}"),
+              startIdx < endIdx else { return nil }
+        let jsonSubstring = String(stripped[startIdx...endIdx])
+        guard let data = jsonSubstring.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(LLMPayload.self, from: data)
+    }
+
+    private static func parseISODate(_ raw: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        for format in ["yyyy-MM-dd HH:mm", "yyyy-MM-dd", "yyyy/MM/dd", "MM-dd"] {
+            formatter.dateFormat = format
+            if let d = formatter.date(from: raw) { return d }
+        }
+        return nil
     }
 
     // MARK: - Heuristics

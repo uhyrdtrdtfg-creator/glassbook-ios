@@ -30,7 +30,11 @@ enum VisionOCRService {
             }
             request.recognitionLevel = .accurate
             request.recognitionLanguages = ["zh-Hans", "en-US"]
-            request.usesLanguageCorrection = true
+            // Language correction 对通用文字有益,但对收据场景**有害**:
+            // 商户名/菜名/SKU 经常是专有名词,被语言模型"纠"成常见词后反而错
+            // (海底捞 → 海底劳 / 海底捞面 这种). 关掉拿原始识别结果,
+            // 后面交给 PhoneClaw (Gemma 4) 做上下文感知的纠错 + 结构化抽取.
+            request.usesLanguageCorrection = false
 
             let handler = VNImageRequestHandler(cgImage: cg, options: [:])
             Task.detached(priority: .userInitiated) {
