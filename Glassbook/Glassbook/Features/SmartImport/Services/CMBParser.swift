@@ -30,7 +30,12 @@ struct CMBParser: PlatformParser {
 
         var i = 0
         while i < lines.count {
-            let line = lines[i].trimmingCharacters(in: .whitespaces)
+            let rawLine = lines[i].trimmingCharacters(in: .whitespaces)
+            // Icon column glyphs (Vision misreads 🛍/🍴/🎤 icons as 日/口/田/目 single
+            // chars) — skip outright if the whole line is just one of those, or
+            // strip the icon prefix if it got glued onto the merchant name
+            // ("日深圳宜家..." → "深圳宜家...").
+            let line = ParserKit.strippingIconPrefix(rawLine)
 
             // Section headers: update the current-day anchor before we skip.
             if let anchor = dayHeader(line, today: today, cal: cal, year: year) {
@@ -42,7 +47,8 @@ struct CMBParser: PlatformParser {
                 || ParserKit.looksLikeStatusChip(line)
                 || ParserKit.looksLikeDateOrTime(line)
                 || ParserKit.looksLikeCardNoise(line)
-                || ParserKit.looksLikeBalanceLine(line) {
+                || ParserKit.looksLikeBalanceLine(line)
+                || ParserKit.looksLikeIconGlyph(line) {
                 i += 1; continue
             }
 

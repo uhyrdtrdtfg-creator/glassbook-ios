@@ -95,6 +95,46 @@ enum ParserKit {
         return t.hasPrefix("余额") && (t.contains("¥") || t.range(of: #"\d"#, options: .regularExpression) != nil)
     }
 
+    /// CMB transaction rows have a category icon (shopping bag / fork-and-spoon
+    /// / microphone) in the left gutter. Vision sometimes misreads these
+    /// rectangle-ish glyphs as single CJK characters that look like boxes:
+    /// 日 口 田 目 回 曰 巳 已 己 or ASCII lookalikes O 0 ○ □ ● ■. Standing
+    /// alone they're always icon noise, not merchant text.
+    static func looksLikeIconGlyph(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespaces)
+        guard t.count == 1 else { return false }
+        let artifacts: Set<Character> = [
+            "日", "口", "田", "目", "回", "曰", "巳", "已", "己", "吕", "品",
+            "O", "0", "○", "●", "□", "■", "▢", "▣", "▪", "▫", "●", "◎", "㎡",
+        ]
+        return artifacts.contains(t.first!)
+    }
+
+    /// Same artifacts as `looksLikeIconGlyph`, but as a *prefix* of a longer
+    /// line — happens when Vision merges an icon observation with the merchant
+    /// name on the same row (e.g. "日深圳宜家家居有限公司"). Strip the stray
+    /// first character and return the cleaned string. Only strips when the
+    /// remainder is clearly a real merchant (≥2 chars starting with a non-icon
+    /// CJK / Latin letter), so legit prefixes like "日本料理店" stay untouched.
+    static func strippingIconPrefix(_ text: String) -> String {
+        let t = text.trimmingCharacters(in: .whitespaces)
+        guard t.count >= 3, let first = t.first else { return t }
+        let artifacts: Set<Character> = [
+            "日", "口", "田", "目", "回", "曰", "巳", "已", "己", "吕", "品",
+            "O", "0", "○", "●", "□", "■",
+        ]
+        guard artifacts.contains(first) else { return t }
+        let remainder = String(t.dropFirst()).trimmingCharacters(in: .whitespaces)
+        // Guard: keep "日本料理" / "日清" / "回转寿司" etc. — the second char
+        // after a legit 日/回 is usually another CJK that forms a word. Only
+        // strip when the 2nd char starts a city / company prefix we know is
+        // standalone (省/市/区/深圳/北京 etc.) or a Latin letter.
+        let cityPrefixes = ["深圳", "北京", "上海", "广州", "成都", "杭州", "武汉", "西安", "南京", "重庆", "东莞"]
+        if cityPrefixes.contains(where: { remainder.hasPrefix($0) }) { return remainder }
+        if let second = remainder.first, second.isLetter && second.isASCII { return remainder }
+        return t
+    }
+
     /// Compute the set of line indices whose amount is a *summary* total —
     /// the one that follows a "支出 / 收入 / 本月合计 / 总计 / Total" label.
     /// Parsers use this to avoid minting phantom transactions from the top-of-
@@ -194,7 +234,8 @@ enum ParserKit {
             if t.isEmpty
                 || looksLikeStatusChip(t)
                 || looksLikeCardNoise(t)
-                || looksLikeBalanceLine(t) { continue }
+                || looksLikeBalanceLine(t)
+                || looksLikeIconGlyph(t) { continue }
             if excluding.contains(i) { return nil }  // summary amount — bail
             if extractAmountCents(from: t, assumeExpense: assumeExpense) != nil {
                 return i

@@ -210,6 +210,63 @@ struct RealBillFormatTests {
         #expect(recall >= 1.0, "CMB real #2 recall regressed: \(recall)")
     }
 
+    // MARK: - CMB screenshot #3 (user submitted 2026-04-22)
+    //
+    // Vision sometimes picks up CMB's left-column category icons (🛍/🍴/🎤) as
+    // single CJK characters that look like boxes — 日, 口, 田, 目. They land
+    // either as a standalone line ABOVE the merchant, or fused onto the front
+    // of the merchant name ("日深圳宜家家居有限公司"). The fixture below
+    // exercises both cases and expects clean output.
+
+    static let cmbLines3: [String] = [
+        "21:55",
+        "收支",
+        "2026.04", "银行卡", "按金额", "筛选",
+        "4.12",
+        // icon + merchant on same row, fused into one line
+        "日深圳宜家家居有限公司",   "-¥5.00",    "信用卡1440 20:20",
+        // icon as standalone line ABOVE merchant
+        "口",  "宜家家居",           "-¥39.99",   "信用卡1440 20:07",
+        "日深圳宜家家居有限公司",   "-¥9.99",    "信用卡1440 18:34",
+        "日深圳宜家家居有限公司",   "-¥292.85",  "信用卡1440 18:29",
+        "口",  "深圳市香遇含忆餐饮管理有限公司", "-¥36.00", "信用卡1440 16:37",
+        "田",  "深圳世界之窗有限公司", "-¥12.00", "信用卡1440 16:08",
+        "口",  "滑冰场咖啡厅",       "-¥10.00",   "信用卡1440 15:49",
+        "口",  "滑冰场咖啡厅",       "-¥30.00",   "信用卡1440 15:47",
+        "口",  "滑冰场咖啡厅",       "-¥10.00",   "信用卡1440 15:43",
+        "口",  "深圳市兜点实业有限责任公司", "-¥24.10", "信用卡1440 14:18",
+        "口",  "钱大妈",             "-¥2.59",    "信用卡1440 09:45",
+    ]
+
+    static let cmbExpected3: [(merchant: String, cents: Int)] = [
+        ("深圳宜家家居有限公司", 500),
+        ("宜家家居", 3_999),
+        ("深圳宜家家居有限公司", 999),
+        ("深圳宜家家居有限公司", 29_285),
+        ("深圳市香遇含忆餐饮管理有限公司", 3_600),
+        ("深圳世界之窗有限公司", 1_200),
+        ("滑冰场咖啡厅", 1_000),
+        ("滑冰场咖啡厅", 3_000),
+        ("滑冰场咖啡厅", 1_000),
+        ("深圳市兜点实业有限责任公司", 2_410),
+        ("钱大妈", 259),
+    ]
+
+    @Test func cmbRealRecall3() {
+        let parsed = CMBParser().parse(lines: Self.cmbLines3)
+        print("📊 CMB REAL #3 parsed \(parsed.count) rows:")
+        for r in parsed { print("   → \(r.merchant) / \(r.amountCents)") }
+        let matched = Self.matches(parsed: parsed, expected: Self.cmbExpected3)
+        let recall = Double(matched) / Double(Self.cmbExpected3.count)
+        print("📊 CMB REAL #3 recall: \(matched)/\(Self.cmbExpected3.count) = \(Int(recall*100))%")
+        // No merchant should start with 日/口/田/目 — those were icon artifacts.
+        for row in parsed {
+            #expect(!["日","口","田","目"].contains(String(row.merchant.prefix(1))),
+                    "Icon glyph leaked into merchant: \(row.merchant)")
+        }
+        #expect(recall >= 0.9, "CMB real #3 recall regressed: \(recall)")
+    }
+
     // MARK: - Cross-platform dedup (user report, 2026-04-19)
     //
     // Scenario: 7-Eleven purchase — WeChat Pay sees "广东 ELEVEN 7" at 12:27,
