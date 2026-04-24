@@ -165,31 +165,50 @@ struct SmartImportFlow: View {
         }
     }
 
-    /// Batch path: user picked N images at once. Run Vision OCR on each image
-    /// in parallel (Swift's async let can't be used in a loop, so we fan out
-    /// via a TaskGroup), pick the best parser per image, merge all rows, then
-    /// dedup both intra-batch (two screenshots of the same list overlap) and
-    /// against existing transactions. One confirm screen with all rows.
+    /// Batch path: user picked N images at once. Run Vision OCR with capped
+    /// concurrency — unrestricted fan-out with 10 high-res screenshots
+    /// exhausts phone RAM and stalls the main thread. Each slot returns
+    /// (index, lines) so we can reassemble in original order and keep
+    /// progress honest.
+    private static let maxOCRConcurrency = 3
+
     private func runRealScanBatch(images: [UIImage]) {
         progress = 0
         Task {
             do {
-                // Fan out OCR across images. Each returns (index, lines) so we
-                // can reassemble in original order and keep progress honest.
                 let ocrResults: [(Int, [String])] = try await withThrowingTaskGroup(of: (Int, [String]).self) { group in
-                    for (idx, img) in images.enumerated() {
-                        group.addTask {
-                            let lines = try await VisionOCRService.recognize(image: img)
-                            return (idx, lines)
-                        }
-                    }
+                    var nextIndex = 0
+                    var inFlight = 0
                     var collected: [(Int, [String])] = []
                     var finished = 0
-                    for try await pair in group {
+                    let total = images.count
+
+                    // Prime the pipe with up to `maxOCRConcurrency` tasks.
+                    while inFlight < Self.maxOCRConcurrency && nextIndex < total {
+                        let i = nextIndex; nextIndex += 1; inFlight += 1
+                        let img = images[i]
+                        group.addTask {
+                            let lines = try await VisionOCRService.recognize(image: img)
+                            return (i, lines)
+                        }
+                    }
+
+                    // For each completion, enqueue the next task. Maintains
+                    // a moving window of at most `maxOCRConcurrency` active.
+                    while let pair = try await group.next() {
                         collected.append(pair)
+                        inFlight -= 1
                         finished += 1
-                        let p = Double(finished) / Double(max(1, images.count)) * 0.9
+                        let p = Double(finished) / Double(max(1, total)) * 0.9
                         await MainActor.run { withAnimation { progress = p } }
+                        if nextIndex < total {
+                            let i = nextIndex; nextIndex += 1; inFlight += 1
+                            let img = images[i]
+                            group.addTask {
+                                let lines = try await VisionOCRService.recognize(image: img)
+                                return (i, lines)
+                            }
+                        }
                     }
                     return collected.sorted { $0.0 < $1.0 }
                 }
@@ -332,9 +351,12 @@ struct SmartImportEntryScreen: View {
         }
     }
 
-    /// Load every picked image concurrently, then forward the batch to the
-    /// flow for OCR. One failed image is surfaced inline but doesn't abort
-    /// the rest — better to scan 9 of 10 than fail the whole pick.
+    /// Load every picked image with capped concurrency (full HEIC decode of
+    /// 10 iPhone screenshots at once was pinning a 6-core phone and stalling
+    /// the main thread). One failed image is surfaced inline but doesn't
+    /// abort the rest — better to scan 9 of 10 than fail the whole pick.
+    private static let maxImageLoadConcurrency = 3
+
     private func handle(items: [PhotosPickerItem], hint: ImportBatch.Platform?) async {
         await MainActor.run { pickerLoading = true; pickerError = nil }
         defer { Task { @MainActor in pickerLoading = false; pickerItems = [] } }
@@ -342,19 +364,21 @@ struct SmartImportEntryScreen: View {
         var loaded: [UIImage] = []
         var failures: Int = 0
         await withTaskGroup(of: UIImage?.self) { group in
-            for item in items {
-                group.addTask {
-                    do {
-                        guard let data = try await item.loadTransferable(type: Data.self),
-                              let img = UIImage(data: data) else { return nil }
-                        return img
-                    } catch {
-                        return nil
-                    }
-                }
+            var nextIndex = 0
+            var inFlight = 0
+            let total = items.count
+
+            while inFlight < Self.maxImageLoadConcurrency && nextIndex < total {
+                let item = items[nextIndex]; nextIndex += 1; inFlight += 1
+                group.addTask { await Self.loadImage(from: item) }
             }
-            for await img in group {
+            while let img = await group.next() {
                 if let img { loaded.append(img) } else { failures += 1 }
+                inFlight -= 1
+                if nextIndex < total {
+                    let item = items[nextIndex]; nextIndex += 1; inFlight += 1
+                    group.addTask { await Self.loadImage(from: item) }
+                }
             }
         }
 
@@ -367,6 +391,18 @@ struct SmartImportEntryScreen: View {
                 pickerError = "其中 \(failures) 张读取失败,跳过继续扫描剩下 \(loaded.count) 张"
             }
             onRealImages(loaded, hint)
+        }
+    }
+
+    /// One `PhotosPickerItem` → `UIImage`, nil on failure. Shared by the
+    /// capped loader above. Uses a task-local autoreleasepool so decoded
+    /// JPEG/HEIC data isn't held past this one item.
+    private static func loadImage(from item: PhotosPickerItem) async -> UIImage? {
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else { return nil }
+            return autoreleasepool { UIImage(data: data) }
+        } catch {
+            return nil
         }
     }
 
