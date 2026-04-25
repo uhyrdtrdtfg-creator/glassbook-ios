@@ -97,4 +97,95 @@ final class SnapshotTests: XCTestCase {
             record: recordMode
         )
     }
+
+    // MARK: - Profile
+
+    @MainActor
+    func testProfileView_default() {
+        let store = AppStore()
+        let lock = AppLock()
+        lock.skipAuth = true
+        let engines = AIEngineStore()
+        let webhooks = WebhookStore()
+        let pinned = frozenNow
+        let view = ZStack {
+            AuroraBackground(palette: .profile)
+            ProfileView(now: { pinned })
+                .environment(store)
+                .environment(lock)
+                .environment(engines)
+                .environment(webhooks)
+        }
+        .frame(width: 390, height: 844)
+        assertSnapshot(
+            of: UIHostingController(rootView: view),
+            as: .image(on: .iPhone13, precision: 0.98),
+            record: recordMode
+        )
+    }
+
+    // MARK: - AddTransaction (sheet)
+
+    @MainActor
+    func testAddTransactionView_default() {
+        let store = AppStore()
+        // why: AddTransactionView is normally presented as a sheet, but the
+        // sheet wrapper isn't necessary for snapshotting the form chrome —
+        // host the view directly so we capture the body without the sheet's
+        // navigation stack interfering.
+        let view = AddTransactionView()
+            .environment(store)
+            .frame(width: 390, height: 844)
+        assertSnapshot(
+            of: UIHostingController(rootView: view),
+            as: .image(on: .iPhone13, precision: 0.98),
+            record: recordMode
+        )
+    }
+
+    // MARK: - Onboarding (3 steps)
+
+    @MainActor
+    func testOnboarding_aiEngineStep() {
+        let view = ZStack {
+            AuroraBackground(palette: .stats)
+            AIEnginePickerStep(onNext: {}, onSkip: {})
+        }
+        .frame(width: 390, height: 844)
+        assertSnapshot(
+            of: UIHostingController(rootView: view),
+            as: .image(on: .iPhone13, precision: 0.98),
+            record: recordMode
+        )
+    }
+
+    @MainActor
+    func testOnboarding_screenshotStep() {
+        let view = ZStack {
+            AuroraBackground(palette: .bills)
+            ScreenshotAutomationStep(onNext: {}, onSkip: {})
+        }
+        .frame(width: 390, height: 844)
+        assertSnapshot(
+            of: UIHostingController(rootView: view),
+            as: .image(on: .iPhone13, precision: 0.98),
+            record: recordMode
+        )
+    }
+
+    @MainActor
+    func testOnboarding_familyStep() {
+        let store = AppStore()
+        let view = ZStack {
+            AuroraBackground(palette: .profile)
+            FamilyStep(onFinish: {}, onSkip: {})
+                .environment(store)
+        }
+        .frame(width: 390, height: 844)
+        assertSnapshot(
+            of: UIHostingController(rootView: view),
+            as: .image(on: .iPhone13, precision: 0.98),
+            record: recordMode
+        )
+    }
 }

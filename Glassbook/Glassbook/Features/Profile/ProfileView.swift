@@ -6,6 +6,14 @@ struct ProfileView: View {
     @Environment(AppLock.self) private var lock
     @Environment(AIEngineStore.self) private var aiEngines
     @Environment(WebhookStore.self) private var webhooks
+
+    /// Time source — defaulted so existing call sites compile unchanged; tests pin it for determinism.
+    private let now: () -> Date
+
+    init(now: @escaping () -> Date = { .now }) {
+        self.now = now
+    }
+
     @State private var showBudget = false
     @State private var showSmartImport = false
     @State private var showAccounts = false
@@ -288,7 +296,7 @@ struct ProfileView: View {
 
                 spotlightCard(
                     title: "年度回顾",
-                    subtitle: "\(Calendar.current.component(.year, from: Date())) 年消费故事已准备好",
+                    subtitle: "\(Calendar.current.component(.year, from: now())) 年消费故事已准备好",
                     icon: "sparkles",
                     gradient: [AppColors.auroraPurple, AppColors.brandStart]
                 ) {
@@ -351,7 +359,7 @@ struct ProfileView: View {
         [
             .init(icon: "target", label: "储蓄目标", value: "\(store.goals.count) 个 · 累计 \(Money.yuan(store.totalSavedCents, showDecimals: false))", action: { showGoals = true }),
             .init(icon: "repeat", label: "订阅管理", value: "\(Money.yuan(store.monthlySubscriptionTotalCents, showDecimals: false))/月", action: { showSubscriptions = true }),
-            .init(icon: "sparkles", label: "\(Calendar.current.component(.year, from: Date())) 年度回顾", value: "Glassbook Wrapped", action: { showAnnualWrap = true }),
+            .init(icon: "sparkles", label: "\(Calendar.current.component(.year, from: now())) 年度回顾", value: "Glassbook Wrapped", action: { showAnnualWrap = true }),
             .init(icon: "lightbulb", label: "消费洞察", value: "AI 每日更新", action: { showInsights = true }),
             .init(icon: "bubble.left.and.bubble.right", label: "问账 · AI 财务顾问", value: "多轮对话", action: { showAdvisor = true }),
             .init(icon: "exclamationmark.arrow.triangle.2.circlepath", label: "沉没成本分析", value: "闲置订阅 + 吃灰硬件", action: { showSunkCost = true })
