@@ -31,7 +31,8 @@ struct AccountsView: View {
         .sheet(isPresented: $showAddSheet) {
             AddAccountSheet()
                 .environment(store)
-                .presentationDetents([.medium])
+                .presentationDetents([.large, .medium])
+                .presentationDragIndicator(.visible)
         }
     }
 

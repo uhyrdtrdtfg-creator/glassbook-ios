@@ -10,26 +10,17 @@ struct RootView: View {
     // why: read the onboarding flag here so the sheet auto-presents on fresh installs.
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
     @State private var showingOnboarding = false
+    @Environment(\.horizontalSizeClass) private var hSizeClass
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            AuroraBackground(palette: selectedTab.palette)
-                .animation(.easeInOut(duration: 0.45), value: selectedTab)
-
-            Group {
-                switch selectedTab {
-                case .home:     HomeView()
-                case .bills:    BillsView()
-                case .stats:    StatsView()
-                case .profile:  ProfileView()
-                }
+        // why hSizeClass branch: regular width (iPad / Mac Catalyst) gets a sidebar
+        // split layout; compact (iPhone) keeps the bespoke glass tab bar.
+        Group {
+            if hSizeClass == .regular {
+                iPadSplitLayout
+            } else {
+                iPhoneTabLayout
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            TabBar(selected: $selectedTab) {
-                showingAddSheet = true
-            }
-            .padding(.bottom, 2)
         }
         .sheet(isPresented: $showingAddSheet) {
             AddTransactionView(onPresentSmartImport: {
@@ -51,6 +42,81 @@ struct RootView: View {
         .onAppear {
             if !hasCompletedOnboarding { showingOnboarding = true }
         }
+    }
+
+    private var iPhoneTabLayout: some View {
+        ZStack(alignment: .bottom) {
+            AuroraBackground(palette: selectedTab.palette)
+                .animation(.easeInOut(duration: 0.45), value: selectedTab)
+
+            Group {
+                switch selectedTab {
+                case .home:     HomeView()
+                case .bills:    BillsView()
+                case .stats:    StatsView()
+                case .profile:  ProfileView()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            TabBar(selected: $selectedTab) {
+                showingAddSheet = true
+            }
+            .padding(.bottom, 2)
+        }
+    }
+
+    private var iPadSplitLayout: some View {
+        NavigationSplitView {
+            SidebarView(selection: $selectedTab, onAdd: { showingAddSheet = true })
+        } detail: {
+            ZStack {
+                AuroraBackground(palette: selectedTab.palette)
+                    .animation(.easeInOut(duration: 0.45), value: selectedTab)
+
+                Group {
+                    switch selectedTab {
+                    case .home:     HomeView()
+                    case .bills:    BillsView()
+                    case .stats:    StatsView()
+                    case .profile:  ProfileView()
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+}
+
+// MARK: - Sidebar (iPad / Mac Catalyst)
+
+private struct SidebarView: View {
+    @Binding var selection: TabKey
+    var onAdd: () -> Void
+
+    // why optional binding: List(selection:) on iOS requires Binding<SelectionValue?>;
+    // we never want the sidebar to show "no selection," so coerce both ways.
+    private var optionalSelection: Binding<TabKey?> {
+        Binding(
+            get: { selection },
+            set: { if let v = $0 { selection = v } }
+        )
+    }
+
+    var body: some View {
+        List(selection: optionalSelection) {
+            Section {
+                ForEach(TabKey.allCases, id: \.self) { key in
+                    Label(key.title, systemImage: key.iconSystemName).tag(key)
+                }
+            }
+            Section {
+                Button(action: onAdd) {
+                    Label("记一笔", systemImage: "plus.circle.fill")
+                }
+            }
+        }
+        .navigationTitle("Glassbook")
     }
 }
 
