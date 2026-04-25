@@ -12,6 +12,7 @@ struct InvoiceExportView: View {
     @State private var titleText: String = "Glassbook · 报销明细"
     @State private var authorText: String = ""
     @State private var generatedURL: URL?
+    @State private var csvURL: URL?
     @State private var errorMessage: String?
 
     var body: some View {
@@ -204,6 +205,22 @@ struct InvoiceExportView: View {
             .disabled(filtered.isEmpty)
             .opacity(filtered.isEmpty ? 0.5 : 1)
 
+            Button {
+                generateCSV()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "tablecells")
+                    Text("导出 CSV").font(.system(size: 14, weight: .medium))
+                }
+                .foregroundStyle(AppColors.ink)
+                .frame(maxWidth: .infinity, minHeight: 46)
+                .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.6)))
+                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(AppColors.glassBorder, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .disabled(filtered.isEmpty)
+            .opacity(filtered.isEmpty ? 0.5 : 1)
+
             if let url = generatedURL {
                 ShareLink(item: url) {
                     HStack(spacing: 8) {
@@ -216,6 +233,21 @@ struct InvoiceExportView: View {
                     .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(AppColors.glassBorder, lineWidth: 1))
                 }
                 Text("PDF 已生成在设备临时目录 · 未经任何服务器")
+                    .font(.system(size: 10))
+                    .foregroundStyle(AppColors.incomeGreen)
+            }
+            if let url = csvURL {
+                ShareLink(item: url) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "square.and.arrow.up")
+                        Text("分享 / 存储 CSV").font(.system(size: 13, weight: .medium))
+                    }
+                    .foregroundStyle(AppColors.ink)
+                    .frame(maxWidth: .infinity, minHeight: 46)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.6)))
+                    .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(AppColors.glassBorder, lineWidth: 1))
+                }
+                Text("CSV 已生成在设备临时目录 · UTF-8 (BOM) · Excel 兼容")
                     .font(.system(size: 10))
                     .foregroundStyle(AppColors.incomeGreen)
             }
@@ -241,6 +273,70 @@ struct InvoiceExportView: View {
         } catch {
             errorMessage = "导出失败:\(error.localizedDescription)"
         }
+    }
+
+    // MARK: - CSV
+
+    private func generateCSV() {
+        errorMessage = nil
+        let rows = filtered.sorted { $0.timestamp > $1.timestamp }
+        let text = csvString(from: rows)
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Glassbook-\(Self.csvFileStamp()).csv")
+        do {
+            try text.data(using: .utf8)?.write(to: url)
+            csvURL = url
+        } catch {
+            errorMessage = "CSV 导出失败:\(error.localizedDescription)"
+        }
+    }
+
+    private func csvString(from txs: [Transaction]) -> String {
+        var out = "\u{FEFF}"
+        out += "date,merchant,category,amount,account,note,source\n"
+        for tx in txs {
+            let cat = Category.by(tx.categoryID)
+            let account = store.accounts.first(where: { $0.id == tx.accountID })?.name ?? ""
+            let cols = [
+                Self.csvDateFmt.string(from: tx.timestamp),
+                tx.merchant,
+                cat.name,
+                Self.csvAmount(cents: tx.amountCents),
+                account,
+                tx.note ?? "",
+                tx.source.rawValue,
+            ].map(Self.csvEscape)
+            out += cols.joined(separator: ",")
+            out += "\n"
+        }
+        return out
+    }
+
+    private static func csvEscape(_ s: String) -> String {
+        if s.contains(where: { $0 == "," || $0 == "\"" || $0 == "\n" || $0 == "\r" }) {
+            return "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+        }
+        return s
+    }
+
+    private static func csvAmount(cents: Int) -> String {
+        let sign = cents < 0 ? "-" : ""
+        let v = abs(cents)
+        return "\(sign)\(v / 100).\(String(format: "%02d", v % 100))"
+    }
+
+    private static let csvDateFmt: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    private static func csvFileStamp() -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyyMMdd-HHmmss"
+        return f.string(from: .now)
     }
 }
 
