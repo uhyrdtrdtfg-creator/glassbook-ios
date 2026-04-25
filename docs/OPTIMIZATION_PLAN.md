@@ -12,17 +12,8 @@
 
 ## 🔥 第一梯队 · 日常痛点 · 每个 0.5-2 小时
 
-### 1. ⚪ 编辑时未保存提示
-**现状**: [EditTransactionSheet](../Glassbook/Glassbook/Features/Bills/EditTransactionSheet.swift) 和 [EditPendingRowSheet](../Glassbook/Glassbook/Features/SmartImport/SmartImportFlow.swift) 点"取消"直接丢改动, 没二次确认。改了一堆数字不小心丢了很气。
-
-**做法**:
-- `RichTxFormView` 加 `@State var hasEditedValues: Bool`
-- 任一 field onChange 时置 true
-- `onCancel` 若 `hasEditedValues == true` 弹 `.confirmationDialog("确定放弃修改?")`
-- 加个保护不让误触 · 按 "继续编辑" 回到表单
-
-**估时**: 30 分钟
-**文件**: `Features/Shared/RichTxFormView.swift`
+### 1. 🟢 编辑时未保存提示
+落在 [552258c](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/552258c). `RichTxFormView` 内部 `hasEditedValues` + `.confirmationDialog`,8 个 field 全部挂上 dirty 信号;两处 caller (EditTransactionSheet / EditPendingRowSheet) 零 diff。
 
 ---
 
@@ -54,31 +45,13 @@
 
 ---
 
-### 4. ⚪ 跨月搜索
-**现状**: BillsView 只按月份 + 分类筛, 没法搜"星巴克"或"上次给 XXX 转账"。
-
-**做法**:
-- Bills nav 上方加 `TextField` · 实时 filter `store.transactions`
-- 搜 merchant contains + note contains, 忽略大小写
-- 搜索激活时绕过月份筛选 · 搜全量
-- 用 `.searchable(text:)` modifier 就行
-
-**估时**: 30 分钟
-**文件**: `Features/Bills/BillsView.swift`
+### 4. 🟢 跨月搜索
+落在 [68145db](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/68145db). `.searchable` + `localizedCaseInsensitiveContains` 扫全量 · 命中期间隐藏月份导航和汇总卡 · 零结果走 "找不到「query」" 空态。分类 chip 仍然生效。
 
 ---
 
-### 5. ⚪ CSV 导出
-**现状**: [InvoiceExportView](../Glassbook/Glassbook/Features/Export/InvoiceExportView.swift) 只有 PDF。Excel 党要做月度报销表必须手输。
-
-**做法**:
-- 同一 sheet 加 "导出 CSV" 按钮
-- 生成 UTF-8 BOM + 7 列: `date, merchant, category, amount, account, note, source`
-- Quote 含逗号 / 换行的字段
-- `ShareLink(item:)` 直接抛系统分享
-
-**估时**: 30 分钟
-**文件**: `Features/Export/InvoiceExportView.swift`
+### 5. 🟢 CSV 导出
+落在 [c6bf8fd](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/c6bf8fd). UTF-8 BOM + 7 列 (date/merchant/category/amount/account/note/source),RFC 4180 quoting,写临时文件后交给 `ShareLink(item: URL)`,文件名 `Glassbook-yyyyMMdd-HHmmss.csv` 与 PDF 配对。
 
 ---
 
@@ -111,17 +84,8 @@
 
 ---
 
-### 8. ⚪ Webhook URL 挪到 Keychain
-**现状**: [WebhookStore](../Glassbook/Glassbook/Services/WebhookStore.swift) `endpoints` 整个写 UserDefaults plain text。Slack incoming webhook URL 本身就是 token · 泄露 = 任何人能发消息到 channel。
-
-**做法**:
-- Endpoint struct 拆成 metadata (name / platform / triggers) 和 secret (url)
-- metadata 进 UserDefaults · secret 进 Keychain · 按 endpoint.id 索引
-- 迁移: 启动时检测老数据, 把 url 搬到 Keychain 后清空 UserDefaults 字段
-- `emit` / 保存路径统一走 Keychain 读 url
-
-**估时**: 2 小时
-**文件**: `Services/WebhookStore.swift`, `Services/KeychainService.swift`
+### 8. 🟢 Webhook URL 挪到 Keychain
+落在 [adf369c](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/adf369c). `Endpoint.url` 保留 stored var (UI 绑定兼容) 但 `CodingKeys` 显式排除;Keychain key `webhook.url.<uuid>`;`restore()` double-decode 老数据一次性迁移,Keychain 写失败回滚 UD 防丢配置。UI 层零改动。
 
 ---
 
@@ -138,17 +102,8 @@
 
 ---
 
-### 10. ⚪ 月度对比卡片
-**现状**: HomeView "本月已花 X", 没"比上月 +/- Y%"。用户最关心趋势信号。
-
-**做法**:
-- AppStore 已有 `monthlyTrend(months:)` 接口
-- HomeView 在当月卡片下加一行 `Text("vs. 3 月: +12%")`
-- 涨用红字 (expense) · 降用绿字 (income-style)
-- 超过 ±50% 加 "📈 / 📉" emoji
-
-**估时**: 30 分钟
-**文件**: `Features/Home/HomeView.swift`
+### 10. 🟢 月度对比卡片
+落在 [525f4b2](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/525f4b2). 发现 `AppStore.monthlyTrend` offset>0 返回合成数据,改用 `lastMonthExpenseCents` + `thisMonthExpenseCents` 真实对比;locale-aware 月名 (`setLocalizedDateFormatFromTemplate("MMM")`),上月零支出降级为 "本月首次支出"。
 
 ---
 
