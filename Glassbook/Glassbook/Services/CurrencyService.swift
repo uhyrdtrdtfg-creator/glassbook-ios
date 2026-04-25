@@ -79,10 +79,13 @@ final class CurrencyService {
                 throw URLError(.badServerResponse)
             }
             let feed = try JSONDecoder().decode(Feed.self, from: data)
-            var inverted: [String: Double] = ["CNY": 1.0]
-            for (code, r) in feed.rates where r > 0 && code != "CNY" {
-                inverted[code] = 1.0 / r
-            }
+            let inverted: [String: Double] = {
+                var dict: [String: Double] = ["CNY": 1.0]
+                for (code, r) in feed.rates where r > 0 && code != "CNY" {
+                    dict[code] = 1.0 / r
+                }
+                return dict
+            }()
             await MainActor.run {
                 // Merge rather than replace — keeps any codes the server didn't return.
                 var merged = snapshot.rates
