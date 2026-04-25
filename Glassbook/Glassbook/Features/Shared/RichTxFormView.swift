@@ -13,6 +13,8 @@ import SwiftUI
 /// one, or mutating a PendingImportRow.
 struct RichTxFormView: View {
 
+    @Environment(AIEngineStore.self) private var aiEngines
+
     struct Values {
         var kind: Transaction.Kind = .expense
         var amountCents: Int = 0
@@ -337,11 +339,10 @@ struct RichTxFormView: View {
     /// the call. Apple Intelligence has no public text API so we hide there
     /// too — same rule as LLMClassifier.
     private var llmAvailable: Bool {
-        let store = AIEngineStore.shared
-        let engine = store.selected
+        let engine = aiEngines.selected
         if engine == .appleIntelligence { return false }
         if engine == .phoneclaw { return true }  // 本地不需要 API key
-        if let key = store.apiKey(for: engine), !key.isEmpty { return true }
+        if let key = aiEngines.apiKey(for: engine), !key.isEmpty { return true }
         return false
     }
 

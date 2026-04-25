@@ -4,11 +4,11 @@ import SwiftUI
 /// falls back to deterministic local answers otherwise.
 struct AdvisorView: View {
     @Environment(AppStore.self) private var store
+    @Environment(AIEngineStore.self) private var engineStore
     @Environment(\.dismiss) private var dismiss
     @State private var service: AdvisorChatService?
     @State private var input: String = ""
     @FocusState private var inputFocused: Bool
-    @Bindable private var engineStore = AIEngineStore.shared
 
     var body: some View {
         ZStack {
@@ -256,5 +256,7 @@ private struct BounceDelayModifier: ViewModifier {
 }
 
 #Preview {
-    AdvisorView().environment(AppStore())
+    AdvisorView()
+        .environment(AppStore())
+        .environment(AIEngineStore())
 }

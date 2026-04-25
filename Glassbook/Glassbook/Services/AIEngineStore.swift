@@ -6,6 +6,14 @@ import Observation
 /// year-in-review, and the V2 multi-turn "问账" assistant.
 @Observable
 final class AIEngineStore {
+    /// Item 18 · 去单例迁移 (Apr 2026).
+    /// Views go through `@Environment(AIEngineStore.self)` injected at app root.
+    /// `.shared` still alive because Service-layer consumers (LLMClient,
+    /// LLMClassifier, ReceiptOCRService, AdvisorChatService) read it directly —
+    /// migrating those needs init injection across the LLM stack and is
+    /// deferred. The app root reuses `.shared` as the env value so on-disk
+    /// state (UserDefaults + Keychain) stays consistent across both paths.
+    // TODO: remove once services accept injection
     static let shared = AIEngineStore()
 
     enum Engine: String, CaseIterable, Codable, Identifiable, Hashable {
@@ -113,7 +121,7 @@ final class AIEngineStore {
     private let selectedKey = "AIEngineStore.selected"
     private let configsKey = "AIEngineStore.configs"
 
-    private init() {
+    init() {
         self.selected = .appleIntelligence
         self.configs = [:]
         restore()

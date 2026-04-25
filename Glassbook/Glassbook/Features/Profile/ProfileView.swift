@@ -4,6 +4,8 @@ import SwiftUI
 struct ProfileView: View {
     @Environment(AppStore.self) private var store
     @Environment(AppLock.self) private var lock
+    @Environment(AIEngineStore.self) private var aiEngines
+    @Environment(WebhookStore.self) private var webhooks
     @State private var showBudget = false
     @State private var showSmartImport = false
     @State private var showAccounts = false
@@ -368,8 +370,8 @@ struct ProfileView: View {
         [
             .init(icon: "viewfinder", label: "智能识别", value: "支付宝 · 微信 · 招行", action: { showSmartImport = true }),
             .init(icon: "arrow.down.doc", label: "数据导出", value: "PDF · 发票", action: { showExport = true }),
-            .init(icon: "brain", label: "AI 引擎 · BYO LLM", value: AIEngineStore.shared.selected.displayName, action: { showAIEngine = true }),
-            .init(icon: "bell.and.waves.left.and.right", label: "Webhook · 设备直出", value: "\(WebhookStore.shared.endpoints.count) 端点", action: { showWebhooks = true }),
+            .init(icon: "brain", label: "AI 引擎 · BYO LLM", value: aiEngines.selected.displayName, action: { showAIEngine = true }),
+            .init(icon: "bell.and.waves.left.and.right", label: "Webhook · 设备直出", value: "\(webhooks.endpoints.count) 端点", action: { showWebhooks = true }),
             .init(icon: "bolt.horizontal", label: "自动化记账", value: "截屏 · 快捷指令", action: { showAutomation = true }),
             .init(icon: "externaldrive.badge.minus", label: "清除数据 / 重置演示", value: "\(store.transactions.count) 笔交易", action: { showDataManagement = true })
         ]

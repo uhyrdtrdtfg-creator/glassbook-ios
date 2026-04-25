@@ -6,7 +6,7 @@ import SwiftUI
 /// detail drill-in.
 struct AIEngineSettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @Bindable private var store = AIEngineStore.shared
+    @Environment(AIEngineStore.self) private var store
     @State private var selectedForDetail: AIEngineStore.Engine?
 
     // PhoneClaw 自检状态 — 按测试按钮后更新, 成功/失败都回显在卡片里.
@@ -273,7 +273,7 @@ struct AIEngineSettingsView: View {
 private struct EngineDetailSheet: View {
     let engine: AIEngineStore.Engine
     @Environment(\.dismiss) private var dismiss
-    @Bindable private var store = AIEngineStore.shared
+    @Environment(AIEngineStore.self) private var store
 
     @State private var baseURL: String = ""
     @State private var apiKey: String = ""
@@ -509,4 +509,5 @@ struct WrapLayout: Layout {
 
 #Preview {
     AIEngineSettingsView()
+        .environment(AIEngineStore())
 }

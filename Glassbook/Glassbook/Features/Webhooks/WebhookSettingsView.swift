@@ -3,7 +3,7 @@ import SwiftUI
 /// Spec v2 §6.2.7 · Device-side Webhook endpoints.
 struct WebhookSettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @Bindable private var store = WebhookStore.shared
+    @Environment(WebhookStore.self) private var store
     @State private var editingEndpoint: WebhookStore.Endpoint?
     @State private var showAddSheet = false
 
@@ -671,4 +671,5 @@ private extension Text {
 
 #Preview {
     WebhookSettingsView()
+        .environment(WebhookStore())
 }

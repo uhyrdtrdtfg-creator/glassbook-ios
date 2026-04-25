@@ -9,6 +9,10 @@ struct GlassbookApp: App {
 
     @State private var store: AppStore
     @State private var lock = AppLock()
+    // Item 18 · 去单例 — reuse the same instance as `.shared` so the env-injected
+    // store and the service-layer fallback share UserDefaults / Keychain state.
+    @State private var aiEngines = AIEngineStore.shared
+    @State private var webhooks = WebhookStore.shared
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -24,6 +28,8 @@ struct GlassbookApp: App {
                 RootView()
                     .environment(store)
                     .environment(lock)
+                    .environment(aiEngines)
+                    .environment(webhooks)
                     .preferredColorScheme(.light)
                     .tint(AppColors.ink)
 

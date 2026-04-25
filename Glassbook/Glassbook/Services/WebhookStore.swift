@@ -6,6 +6,13 @@ import Observation
 /// the phone itself POSTs JSON to the user's Slack / 飞书 / n8n URL. No relay.
 @Observable
 final class WebhookStore {
+    /// Item 18 · 去单例迁移 (Apr 2026).
+    /// Views go through `@Environment(WebhookStore.self)` injected at app root.
+    /// `.shared` is kept as a fallback for service-layer callers that may emit
+    /// triggers without a SwiftUI environment in scope. App root reuses
+    /// `.shared` as the env value so on-disk state (UserDefaults + Keychain)
+    /// stays consistent across both paths.
+    // TODO: remove once services accept injection
     static let shared = WebhookStore()
 
     enum Trigger: String, CaseIterable, Codable {
@@ -125,7 +132,7 @@ final class WebhookStore {
     }
     private let storageKey = "WebhookStore.endpoints"
 
-    private init() {
+    init() {
         self.endpoints = []
         restore()
         if endpoints.isEmpty {
