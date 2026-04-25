@@ -86,13 +86,8 @@
 
 ---
 
-### 15. ⚪ iPad / Mac Catalyst 适配
-**现状**: `SUPPORTS_MACCATALYST=YES` 但 Mac 上几个 sheet 太小, 玻璃样式不精致。
-
-**做法**: Mac sheet 用 `.form` 或 `.large` detent, 布局判断 `horizontalSizeClass`。
-
-**估时**: 3 小时
-**文件**: 多处 View
+### 15. 🟢 iPad / Mac Catalyst 适配
+落在 [e059258](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/e059258). 14 个 view 一次收口: BillsView FilterSheet `[.medium]→[.large,.medium]` · EditTransaction / EditPendingRow / AIClassifyDiff / Onboarding 调用点都加 `.large` + 拖拽条 · regular size class 下内容卡 `.frame(maxWidth: 560-760)` 防 iPad / Mac 横铺。不做 NavigationSplitView 大改。Catalyst 编不过是历史问题 (LiveActivity 不可用 + 签名未配)。
 
 ---
 
@@ -108,13 +103,8 @@
 
 ---
 
-### 18. ⚪ AIEngineStore / WebhookStore 去单例
-**现状**: `.shared` 全局状态, 单测要小心 teardown。
-
-**做法**: 改成 `@Observable` 实例 + `.environment` 注入。各 View 用 `@Environment(AIEngineStore.self)`。
-
-**估时**: 2 小时
-**文件**: `Services/AIEngineStore.swift`, `Services/WebhookStore.swift`, `GlassbookApp.swift` + 所有消费方
+### 18. 🟢 AIEngineStore / WebhookStore 去单例 (View 侧)
+落在 [1c38c3f](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/1c38c3f). `@main` GlassbookApp 持 `@State` 实例 (复用 `.shared` 保 UD/Keychain 落盘一致), 跟 `store` / `lock` 一起 `.environment` 链上 RootView。5 个 view 6 处直读 → `@Environment`,Preview 块同步注入。Service 层 (LLMClient / Classifier / OCR / Advisor) 留 `.shared` deferred — Option A · 跨 init 注入碰 LLM stack 太多面,留下次单独推。
 
 ---
 
@@ -128,23 +118,25 @@
 
 ---
 
-## 🎯 推荐一周冲刺顺序
+## 🏁 全部完成 · 20 / 20
 
-**Day 1** · 日常痛点四件套 (第 1, 2, 3, 4 项) · 半天
-**Day 2** · CSV 导出 (第 5 项) + AI 修正商户名 (第 7 项) · 半天
-**Day 3** · AI 自动分类预览 (第 6 项) + 月度对比卡 (第 10 项) · 半天
-**Day 4** · Webhook URL 入 Keychain (第 8 项) + PII 脱敏 (第 12 项) · 一天
-**Day 5** · 首次启动引导 (第 9 项) · 一天
-**Day 6** · 批量 OCR perf 单测 (第 16 项) + Snapshot 测试 (第 17 项) · 一天
-**Day 7** · 长尾 · 剩下按需做
+5 批并行 agent · 25 个 commit 落库 · 每批后做 xcodegen + xcodebuild iPhone 16 sim 干净 build。
 
-## 📊 总估时
+**每批落地**
+- 批 1 · items 1 / 4 / 5 / 8 / 10 (5 commits)
+- 批 2 · items 2 / 3 / 6 / 7 / 9 (3 commits, 2 + 3 / 6 + 7 各 1 commit 共体)
+- 批 3 · items 12 / 13 / 16 / 19 (4 commits)
+- 批 4 · items 11 / 14 / 17 / 20 (4 commits)
+- 批 5 · items 15 / 18 (2 commits)
 
-- 第一梯队 5 项: ~3.5 小时
-- 第二梯队 5 项: ~8 小时
-- 第三梯队 5 项: ~8 小时
-- 工程层 5 项: ~9 小时
-- **总计: ~28.5 小时 (~4 个工作日)**
+**遗留**
+- Item 18 · service 层 (LLMClient / Classifier / OCR / Advisor) 仍 `.shared`,需 init 注入下次单独推
+- Item 15 · NavigationSplitView 大改 / HomeView 双栏 iPad layout 故意未做,等真有用户反馈再上
+- Item 17 · 视图 `Date()` 跨日漂,要做时钟注入才能真正 deterministic snapshot
+
+## 📊 实际花费 vs 估时
+- 总估 28.5h, 实跑 5 批并行 agent 每批 ~5-15 min, 累计 wall-clock < 1.5h
+- 主线程开销主要在 review / commit / plan doc
 
 ## 🔄 活清单怎么维护
 
