@@ -7,40 +7,60 @@ struct BillsView: View {
     @State private var filterCategory: Category.Slug? = nil
     @State private var showFilter = false
     @State private var editingTxID: UUID?
+    @State private var searchText: String = ""
 
     private struct IDWrap: Identifiable { let id: UUID }
 
+    private var isSearching: Bool {
+        !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                nav
-                summaryCard
-
-                if groupedTransactions.isEmpty {
-                    emptyState
-                } else {
-                    ForEach(groupedTransactions, id: \.date) { group in
-                        dayGroup(date: group.date, items: group.items)
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    if !isSearching {
+                        nav
+                        summaryCard
                     }
-                }
 
-                Spacer().frame(height: 110)
+                    if isSearching {
+                        if searchGroupedTransactions.isEmpty {
+                            searchEmptyState
+                        } else {
+                            ForEach(searchGroupedTransactions, id: \.date) { group in
+                                dayGroup(date: group.date, items: group.items)
+                            }
+                        }
+                    } else if groupedTransactions.isEmpty {
+                        emptyState
+                    } else {
+                        ForEach(groupedTransactions, id: \.date) { group in
+                            dayGroup(date: group.date, items: group.items)
+                        }
+                    }
+
+                    Spacer().frame(height: 110)
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 6)
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 6)
-        }
-        .scrollIndicators(.hidden)
-        .safeAreaPadding(.top, 8)
-        .sheet(isPresented: $showFilter) {
-            FilterSheet(selected: $filterCategory)
-                .presentationDetents([.medium])
-        }
-        .sheet(item: Binding(
-            get: { editingTxID.map { IDWrap(id: $0) } },
-            set: { editingTxID = $0?.id }
-        )) { wrap in
-            EditTransactionSheet(txID: wrap.id)
-                .environment(store)
+            .scrollIndicators(.hidden)
+            .safeAreaPadding(.top, 8)
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
+            .searchable(text: $searchText, prompt: "搜索商户 / 备注")
+            .sheet(isPresented: $showFilter) {
+                FilterSheet(selected: $filterCategory)
+                    .presentationDetents([.medium])
+            }
+            .sheet(item: Binding(
+                get: { editingTxID.map { IDWrap(id: $0) } },
+                set: { editingTxID = $0?.id }
+            )) { wrap in
+                EditTransactionSheet(txID: wrap.id)
+                    .environment(store)
+            }
         }
     }
 
@@ -309,6 +329,25 @@ struct BillsView: View {
         .glassCard(radius: 22)
     }
 
+    private var searchEmptyState: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 24, weight: .medium))
+                .foregroundStyle(AppColors.ink3)
+            Text("找不到「\(searchText.trimmingCharacters(in: .whitespaces))」")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(AppColors.ink2)
+            Text("换个关键词试试，或者清空搜索框返回账单。")
+                .font(.system(size: 11))
+                .foregroundStyle(AppColors.ink3)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+        .padding(.horizontal, 20)
+        .glassCard(radius: 22)
+    }
+
     private func shiftMonth(_ by: Int) {
         if let next = Calendar.current.date(byAdding: .month, value: by, to: month) {
             month = next
@@ -334,6 +373,24 @@ struct BillsView: View {
         store.txByDay(in: month).compactMap { group in
             let items = group.items.filter { filterCategory == nil || $0.categoryID == filterCategory }
             return items.isEmpty ? nil : (group.date, items)
+        }
+    }
+
+    /// Full-text search across all transactions — bypasses month filter,
+    /// keeps category filter applied on top so the filter chip stays meaningful.
+    private var searchGroupedTransactions: [(date: Date, items: [Transaction])] {
+        let q = searchText.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return [] }
+        let matched = store.transactions.filter { tx in
+            let merchantHit = tx.merchant.localizedCaseInsensitiveContains(q)
+            let noteHit = tx.note?.localizedCaseInsensitiveContains(q) ?? false
+            let categoryOK = filterCategory == nil || tx.categoryID == filterCategory
+            return categoryOK && (merchantHit || noteHit)
+        }
+        let cal = Calendar(identifier: .gregorian)
+        let grouped = Dictionary(grouping: matched) { cal.startOfDay(for: $0.timestamp) }
+        return grouped.keys.sorted(by: >).map { key in
+            (key, grouped[key]!.sorted { $0.timestamp > $1.timestamp })
         }
     }
 
