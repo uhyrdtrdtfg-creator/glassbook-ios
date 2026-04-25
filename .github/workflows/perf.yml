@@ -1,0 +1,110 @@
+# Glassbook · 性能基线 (Item 20)
+# 每天夜里跑 GlassbookTests/PerfTests (RSS budget gate for batch OCR).
+# 失败 = 超预算 或 测试崩 → 自动开 issue / 往已开的 issue 追加一条评论,
+# 避免连续回归每天刷出一个新 issue。
+name: perf-baseline
+
+on:
+  schedule:
+    - cron: '0 15 * * *'  # 23:00 北京时间,CI runner 空窗期
+  workflow_dispatch:
+
+jobs:
+  perf:
+    name: Nightly perf test
+    runs-on: macos-14
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: Glassbook
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 15.4
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+        working-directory: .
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+        working-directory: .
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Pick an available iPhone simulator
+        run: |
+          DEVICE=$(xcrun simctl list devices available | grep -oE "iPhone [0-9]+( Pro)?( Max)?" | head -1)
+          echo "DEVICE=$DEVICE" >> $GITHUB_ENV
+          echo "Using $DEVICE"
+
+      - name: Run perf tests
+        id: perf
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -scheme GlassbookCI \
+            -destination "platform=iOS Simulator,name=${DEVICE}" \
+            -only-testing:GlassbookTests/PerfTests \
+            -resultBundlePath PerfResults.xcresult \
+            2>&1 | tee perf-output.log
+        env:
+          NSUnbufferedIO: YES
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-logs-${{ github.run_id }}
+          path: |
+            Glassbook/perf-output.log
+            Glassbook/PerfResults.xcresult
+          retention-days: 14
+
+      - name: Report regression
+        if: steps.perf.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const log = fs.readFileSync('Glassbook/perf-output.log', 'utf8');
+            const tail = log.split('\n').slice(-50).join('\n');
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'perf,regression'
+            });
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              `Nightly run #${context.runNumber} failed on ${new Date().toISOString()}.`,
+              '',
+              'Tail of build log:',
+              '',
+              '```',
+              tail,
+              '```',
+              '',
+              `[Full run](${runUrl})`
+            ].join('\n');
+            if (existing.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing[0].number,
+                body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `perf regression — nightly run #${context.runNumber}`,
+                body,
+                labels: ['perf', 'regression']
+              });
+            }
+
+      - name: Fail job if tests failed
+        if: steps.perf.outcome == 'failure'
+        run: exit 1
