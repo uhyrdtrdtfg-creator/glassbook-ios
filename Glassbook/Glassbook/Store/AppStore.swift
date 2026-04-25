@@ -4,6 +4,17 @@ import SwiftData
 
 /// AppStore is the view-model façade all SwiftUI screens talk to.
 /// Reads / writes to SwiftData on mutation; views remain struct-oriented.
+/// In-memory holding pen for transactions the user just deleted. Sits between
+/// the UI and SwiftData for a 5-second grace window — see `delete(_:)`.
+struct PendingDeletion: Equatable {
+    let ids: [UUID]
+    let snapshot: [Transaction]
+
+    static func == (lhs: PendingDeletion, rhs: PendingDeletion) -> Bool {
+        lhs.ids == rhs.ids
+    }
+}
+
 @Observable
 final class AppStore {
     var transactions: [Transaction] = []
@@ -12,6 +23,13 @@ final class AppStore {
     var goals: [SavingsGoal] = []
     var familyMembers: [FamilyMember] = SampleData.familyMembers
     var budget: Budget = .default
+
+    /// Non-nil while a delete toast is on screen. UI observes this to render
+    /// UndoToast and to know how many items were just yanked.
+    var pendingDeletion: PendingDeletion?
+    /// Timer that commits the pending deletion to SwiftData after 5s. Held on
+    /// the store so undo (or a new deletion) can cancel it.
+    @ObservationIgnored private var pendingDeletionTask: Task<Void, Never>?
     /// Persisted to UserDefaults so user name survives relaunch. Stored var
     /// (not computed) so @Observable tracks changes and ProfileView re-renders.
     var userName: String = UserDefaults.standard.string(forKey: "user.name") ?? "Roger" {
@@ -251,12 +269,71 @@ final class AppStore {
         persist(tx: tx)
     }
 
+    /// Single-row delete. Hides the row immediately, parks it in
+    /// `pendingDeletion`, and commits to SwiftData after 5s unless undone.
     func delete(_ id: UUID) {
-        transactions.removeAll { $0.id == id }
+        deleteMany(ids: [id])
+    }
+
+    /// Batch delete (multi-select on Bills). Same 5s pending window as single
+    /// delete — the UndoToast covers both paths.
+    // why 5s pending before SwiftData delete:
+    //   手抖误删是高频痛点 · in-memory 先下架做出"已删除"的错觉, Task.sleep 5s
+    //   后再 modelContext.delete。撤销时直接把 snapshot 塞回数组即可, 不用碰 SwiftData。
+    func deleteMany(ids: [UUID]) {
+        guard !ids.isEmpty else { return }
+        // If something is already pending, commit it now — keep behavior simple:
+        // one pending bucket at a time, no merging.
+        if pendingDeletion != nil { commitPendingDeletionNow() }
+
+        let idSet = Set(ids)
+        let snapshot = transactions.filter { idSet.contains($0.id) }
+        guard !snapshot.isEmpty else { return }
+        transactions.removeAll { idSet.contains($0.id) }
+
+        let pending = PendingDeletion(ids: ids, snapshot: snapshot)
+        pendingDeletion = pending
+        pendingDeletionTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled else { return }
+            guard let self, self.pendingDeletion == pending else { return }
+            self.finalizePendingDeletion(pending)
+        }
+    }
+
+    /// User tapped "撤销" — restore snapshot rows, cancel the SwiftData commit.
+    func undoDelete() {
+        guard let pd = pendingDeletion else { return }
+        pendingDeletionTask?.cancel()
+        pendingDeletionTask = nil
+        // Re-insert in original order-ish (by timestamp desc to match list sort).
+        transactions.append(contentsOf: pd.snapshot)
+        transactions.sort { $0.timestamp > $1.timestamp }
+        pendingDeletion = nil
+    }
+
+    /// Flush the current pending deletion to SwiftData immediately. Called when
+    /// the 5s timer fires, when a new deletion arrives mid-pending, and when
+    /// the app goes to background (see `GlassbookApp.onChange(of: scenePhase)`).
+    func commitPendingDeletionNow() {
+        pendingDeletionTask?.cancel()
+        pendingDeletionTask = nil
+        guard let pd = pendingDeletion else { return }
+        finalizePendingDeletion(pd)
+    }
+
+    private func finalizePendingDeletion(_ pd: PendingDeletion) {
+        pendingDeletionTask = nil
+        pendingDeletion = nil
         guard let context else { return }
-        let desc = FetchDescriptor<SDTransaction>(predicate: #Predicate { $0.id == id })
-        for sd in (try? context.fetch(desc)) ?? [] { context.delete(sd) }
+        // #Predicate can't reliably capture Set<UUID>.contains — fall back to
+        // a per-id fetch (mirrors the original single-id `delete` pattern).
+        for id in pd.ids {
+            let desc = FetchDescriptor<SDTransaction>(predicate: #Predicate { $0.id == id })
+            for sd in (try? context.fetch(desc)) ?? [] { context.delete(sd) }
+        }
         try? context.save()
+        syncSnapshots()
     }
 
     /// Edit an existing transaction. Writes through to SwiftData so changes

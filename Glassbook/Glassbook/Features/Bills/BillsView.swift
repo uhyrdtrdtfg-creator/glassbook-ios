@@ -8,6 +8,9 @@ struct BillsView: View {
     @State private var showFilter = false
     @State private var editingTxID: UUID?
     @State private var searchText: String = ""
+    @State private var isEditing: Bool = false
+    @State private var selectedIDs: Set<UUID> = []
+    @Environment(\.scenePhase) private var scenePhase
 
     private struct IDWrap: Identifiable { let id: UUID }
 
@@ -21,7 +24,7 @@ struct BillsView: View {
                 VStack(spacing: 16) {
                     if !isSearching {
                         nav
-                        summaryCard
+                        if !isEditing { summaryCard }
                     }
 
                     if isSearching {
@@ -40,7 +43,7 @@ struct BillsView: View {
                         }
                     }
 
-                    Spacer().frame(height: 110)
+                    Spacer().frame(height: isEditing ? 160 : 110)
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 6)
@@ -49,7 +52,12 @@ struct BillsView: View {
             .safeAreaPadding(.top, 8)
             .scrollContentBackground(.hidden)
             .background(Color.clear)
-            .searchable(text: $searchText, prompt: "搜索商户 / 备注")
+            // Hide search while editing — selection UI would clash with a live search field.
+            .modifier(ConditionalSearchable(text: $searchText, enabled: !isEditing))
+            .overlay(alignment: .bottom) { bulkDeleteBar }
+            .overlay(alignment: .bottom) { undoToastOverlay }
+            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: store.pendingDeletion)
+            .animation(.easeInOut(duration: 0.2), value: selectedIDs.isEmpty)
             .sheet(isPresented: $showFilter) {
                 FilterSheet(selected: $filterCategory)
                     .presentationDetents([.medium])
@@ -61,16 +69,57 @@ struct BillsView: View {
                 EditTransactionSheet(txID: wrap.id)
                     .environment(store)
             }
+            .onChange(of: scenePhase) { _, newPhase in
+                // Don't let the 5s timer outlive the app going to background —
+                // commit immediately so the deletion survives a kill/relaunch.
+                if newPhase == .background { store.commitPendingDeletionNow() }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var bulkDeleteBar: some View {
+        if isEditing && !selectedIDs.isEmpty {
+            Button(role: .destructive) {
+                let ids = Array(selectedIDs)
+                selectedIDs.removeAll()
+                isEditing = false
+                store.deleteMany(ids: ids)
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("删除选中 (\(selectedIDs.count))")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .frame(maxWidth: .infinity, minHeight: 50)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(AppColors.expenseRed)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 86)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    @ViewBuilder
+    private var undoToastOverlay: some View {
+        if let pd = store.pendingDeletion {
+            UndoToast(message: "已删除 \(pd.ids.count) 笔") {
+                store.undoDelete()
+            }
+            .padding(.bottom, 80)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }
 
     private var nav: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("账单")
+                Text(isEditing ? "选择要删除的" : "账单")
                     .font(.system(size: 26, weight: .semibold))
                     .foregroundStyle(AppColors.ink)
-                Text(Self.monthFmt.string(from: month))
+                Text(isEditing ? "已选 \(selectedIDs.count) 笔" : Self.monthFmt.string(from: month))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(AppColors.ink2)
             }
@@ -78,24 +127,51 @@ struct BillsView: View {
             Spacer()
 
             HStack(spacing: 8) {
-                navButton(icon: "chevron.left") { shiftMonth(-1) }
-                navButton(icon: "chevron.right") { shiftMonth(1) }
-                Button { showFilter = true } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: filterCategory == nil ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
-                            .font(.system(size: 12, weight: .semibold))
-                        if filterCategory != nil {
-                            Text(filterLabel)
-                                .font(.system(size: 11, weight: .semibold))
-                                .lineLimit(1)
+                if isEditing {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedIDs.removeAll()
+                            isEditing = false
                         }
+                    } label: {
+                        Text("完成")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(AppColors.ink)
+                            .padding(.horizontal, 14)
+                            .frame(height: 36)
+                            .glassCard(radius: 12)
                     }
-                    .foregroundStyle(AppColors.ink)
-                    .padding(.horizontal, filterCategory == nil ? 0 : 12)
-                    .frame(width: filterCategory == nil ? 36 : nil, height: 36)
-                    .glassCard(radius: 12)
+                    .buttonStyle(.plain)
+                } else {
+                    navButton(icon: "chevron.left") { shiftMonth(-1) }
+                    navButton(icon: "chevron.right") { shiftMonth(1) }
+                    Button { showFilter = true } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: filterCategory == nil ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                            if filterCategory != nil {
+                                Text(filterLabel)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .lineLimit(1)
+                            }
+                        }
+                        .foregroundStyle(AppColors.ink)
+                        .padding(.horizontal, filterCategory == nil ? 0 : 12)
+                        .frame(width: filterCategory == nil ? 36 : nil, height: 36)
+                        .glassCard(radius: 12)
+                    }
+                    .buttonStyle(.plain)
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { isEditing = true }
+                    } label: {
+                        Image(systemName: "checkmark.circle")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(AppColors.ink)
+                            .frame(width: 36, height: 36)
+                            .glassCard(radius: 12)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -275,27 +351,42 @@ struct BillsView: View {
                             .padding(.horizontal, 10)
                     }
                     Button {
-                        editingTxID = tx.id
+                        if isEditing {
+                            toggleSelection(for: tx.id)
+                        } else {
+                            editingTxID = tx.id
+                        }
                     } label: {
-                        TransactionRow(tx: tx, compact: true)
-                            .contentShape(Rectangle())
+                        HStack(spacing: 10) {
+                            if isEditing {
+                                Image(systemName: selectedIDs.contains(tx.id) ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 19, weight: .medium))
+                                    .foregroundStyle(selectedIDs.contains(tx.id) ? AppColors.brandEnd : AppColors.ink3)
+                                    .padding(.leading, 8)
+                                    .transition(.scale.combined(with: .opacity))
+                            }
+                            TransactionRow(tx: tx, compact: true)
+                        }
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .contextMenu {
-                        Button {
-                            editingTxID = tx.id
-                        } label: {
-                            Label("编辑", systemImage: "pencil")
-                        }
-                        Button(role: .destructive) {
-                            store.delete(tx.id)
-                        } label: {
-                            Label("删除", systemImage: "trash")
-                        }
-                        Button {
-                            UIPasteboard.general.string = "\(tx.merchant) \(Money.yuan(tx.amountCents, showDecimals: true))"
-                        } label: {
-                            Label("复制", systemImage: "doc.on.doc")
+                        if !isEditing {
+                            Button {
+                                editingTxID = tx.id
+                            } label: {
+                                Label("编辑", systemImage: "pencil")
+                            }
+                            Button(role: .destructive) {
+                                store.delete(tx.id)
+                            } label: {
+                                Label("删除", systemImage: "trash")
+                            }
+                            Button {
+                                UIPasteboard.general.string = "\(tx.merchant) \(Money.yuan(tx.amountCents, showDecimals: true))"
+                            } label: {
+                                Label("复制", systemImage: "doc.on.doc")
+                            }
                         }
                     }
                 }
@@ -351,6 +442,16 @@ struct BillsView: View {
     private func shiftMonth(_ by: Int) {
         if let next = Calendar.current.date(byAdding: .month, value: by, to: month) {
             month = next
+        }
+    }
+
+    private func toggleSelection(for id: UUID) {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            if selectedIDs.contains(id) {
+                selectedIDs.remove(id)
+            } else {
+                selectedIDs.insert(id)
+            }
         }
     }
 
@@ -592,6 +693,21 @@ private struct FilterSheet: View {
 private extension Collection {
     subscript(safe index: Index) -> Element? {
         indices.contains(index) ? self[index] : nil
+    }
+}
+
+/// Apply `.searchable` only when `enabled`. Hides the search field during
+/// multi-select so the nav area stays clean and predictable.
+private struct ConditionalSearchable: ViewModifier {
+    @Binding var text: String
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.searchable(text: $text, prompt: "搜索商户 / 备注")
+        } else {
+            content
+        }
     }
 }
 
