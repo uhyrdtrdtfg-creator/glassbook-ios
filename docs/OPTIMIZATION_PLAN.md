@@ -76,26 +76,13 @@
 
 ---
 
-### 12. ⚪ Receipt OCR 发 LLM 前脱敏
-**现状**: 收据原文整段扔给 BYO 引擎 (可能是 OpenAI 云), 可能含卡号尾号 / 地址 / 手机号。
-
-**做法**:
-- 发送前正则扫: `\d{16,}` → `****`, `1[3-9]\d{9}` → `1*****`, `[地址栏 xxxx]` 省市区截断到区
-- 统一放 `Util/PIIRedactor.swift`
-- 所有 LLM 出站调用 (Classifier / Receipt / Advisor) 过一遍
-
-**估时**: 1 小时
-**文件**: 新 `Util/PIIRedactor.swift`, 多处调用点
+### 12. 🟢 Receipt OCR 发 LLM 前脱敏
+落在 [144f748](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/144f748). `Util/PIIRedactor.swift` · 7 pass 顺序: ID → Card → Mobile → Landline → Email → Addr (带 `(?<!\d)...(?!\d)` 锁边界,天然幂等)。落地 3 个出站点: ReceiptOCRService LLM 抽取 · LLMClassifier.categorize + simplifyMerchantName · AdvisorChatService.remoteRespond。
 
 ---
 
-### 13. ⚪ 汇率定时刷新
-**现状**: 启动时拉一次 · App 不重启就用旧数据。多币种用户会偏差。
-
-**做法**: CurrencyService 加 24h TTL, 过期自动后台刷。
-
-**估时**: 30 分钟
-**文件**: `Services/CurrencyService.swift`
+### 13. 🟢 汇率定时刷新
+落在 [5df4467](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/5df4467). `lastFetchedAt` 写 UD (key `currency.lastFetchedAt`, Double), `isStale = now - t > 24h`。init / scenePhase `.active` / 显式 `refreshIfStale()` 三路都 gate;网络失败不敲时间戳,下次前台再试。
 
 ---
 
@@ -121,13 +108,8 @@
 
 ## 🧪 工程层 · 自己看见 · 长期重要
 
-### 16. ⚪ 批量 OCR perf 单测
-**现状**: 限并发 + 缩图容易回归 · 没有自动化 gate。
-
-**做法**: `@Test func batchOcrUnderMemoryBudget()` 跑 10 张 fake image, 监控 RSS 不过阈值。
-
-**估时**: 1 小时
-**文件**: 新 `GlassbookTests/PerfTests.swift`
+### 16. 🟢 批量 OCR perf 单测
+落在 [f817c5b](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/f817c5b). Swift Testing `@Test batchOcrUnderMemoryBudget`,10 张 1024×1024 程序生成图,走 `VisionOCRService.recognize` + 3-way TaskGroup 复现热路径 (不经 LLM/网络);`mach_task_basic_info` 抓 RSS,warm-up 一轮后稳态增量 < 200MB。iPhone 16 sim 12.4s 绿。
 
 ---
 
@@ -151,20 +133,8 @@
 
 ---
 
-### 19. ⚪ 拆分 SmartImportFlow.swift
-**现状**: 1100+ 行, 5 个 Screen + 共享 helpers 全挤在一个文件。
-
-**做法**: 按 Screen 拆, `SmartImport/` 下多文件:
-- `SmartImportFlow.swift` (只留 coordinator)
-- `Screens/EntryScreen.swift`
-- `Screens/ScanningScreen.swift`
-- `Screens/ConfirmScreen.swift`
-- `Screens/DoneScreen.swift`
-- `Screens/EmptyScreen.swift`
-- `Sheets/EditPendingRowSheet.swift`
-
-**估时**: 1 小时
-**文件**: `Features/SmartImport/`
+### 19. 🟢 拆分 SmartImportFlow.swift
+落在 [9800e97](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/9800e97). 1403 → 344 行 + 6 子文件 (Screens/{Entry,Scanning,Confirm,Done} · Sheets/{EditPendingRow,AIClassifyDiff})。零行为改动,零 rename,零 access 修正 (原本就 internal);coordinator 留 Step / 扫描 pipeline / Preview (跨 screen 引 StatefulPreview)。EmptyScreen 本来就独立文件。
 
 ---
 
