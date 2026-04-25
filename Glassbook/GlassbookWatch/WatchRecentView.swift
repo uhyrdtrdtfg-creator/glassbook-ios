@@ -6,15 +6,23 @@ struct WatchRecentView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("最近交易")
-                    .font(.system(size: 10, weight: .semibold)).tracking(0.8)
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(0.8)
                     .foregroundStyle(.secondary)
 
                 ForEach(snapshot.recentTransactions) { tx in
                     HStack(spacing: 8) {
-                        Text(tx.emoji).font(.system(size: 14))
-                        VStack(alignment: .leading, spacing: 1) {
+                        Text(tx.emoji)
+                            .font(.system(size: 16))
+                            .frame(width: 24, height: 24)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(Color.white.opacity(0.10))
+                            )
+
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(tx.merchant)
                                 .font(.system(size: 12, weight: .medium))
                                 .lineLimit(1)
@@ -22,14 +30,18 @@ struct WatchRecentView: View {
                                 .font(.system(size: 9))
                                 .foregroundStyle(.secondary)
                         }
+
                         Spacer()
+
                         Text(yuan(tx.cents))
-                            .font(.system(size: 12, weight: .medium).monospacedDigit())
+                            .font(.system(size: 12, weight: .semibold).monospacedDigit())
                     }
-                    .padding(.vertical, 5)
-                    if tx != snapshot.recentTransactions.last {
-                        Divider()
-                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 7)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.white.opacity(0.08))
+                    )
                 }
             }
             .padding(.horizontal, 2)
@@ -37,9 +49,10 @@ struct WatchRecentView: View {
     }
 
     private func yuan(_ cents: Int) -> String {
-        let y = cents / 100
-        let fmt = NumberFormatter(); fmt.numberStyle = .decimal
-        let body = fmt.string(from: NSNumber(value: y)) ?? "\(y)"
+        let yuan = cents / 100
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        let body = formatter.string(from: NSNumber(value: yuan)) ?? "\(yuan)"
         return "¥\(body)"
     }
 }

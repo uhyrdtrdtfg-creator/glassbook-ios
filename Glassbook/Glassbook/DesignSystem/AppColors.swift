@@ -3,24 +3,32 @@ import SwiftUI
 enum AppColors {
     // Ink (主文字色)
     static let ink       = Color(hex: 0x1A1A2E)
-    static let ink2      = Color(hex: 0x1A1A2E).opacity(0.7)
-    static let ink3      = Color(hex: 0x1A1A2E).opacity(0.45)
+    static let ink2      = Color(hex: 0x1A1A2E).opacity(0.72)
+    static let ink3      = Color(hex: 0x1A1A2E).opacity(0.48)
     static let ink4      = Color(hex: 0x1A1A2E).opacity(0.25)
 
     // Glass
-    static let glassFill   = Color.white.opacity(0.38)
-    static let glassBorder = Color.white.opacity(0.6)
-    static let glassDivider = Color.white.opacity(0.5)
+    static let glassFill         = Color.white.opacity(0.34)
+    static let glassFillStrong   = Color.white.opacity(0.54)
+    static let glassTint         = Color(hex: 0xFFF6F0).opacity(0.16)
+    static let glassBorder       = Color.white.opacity(0.72)
+    static let glassBorderSoft   = Color.white.opacity(0.42)
+    static let glassDivider      = Color.white.opacity(0.48)
+    static let innerGlow         = Color.white.opacity(0.30)
+    static let surfaceShadow     = Color(hex: 0x2F2758).opacity(0.14)
+    static let surfaceShadowStrong = Color(hex: 0x2F2758).opacity(0.22)
 
     // Aurora light-spots
     static let auroraPink   = Color(hex: 0xFF9A7B)
     static let auroraBlue   = Color(hex: 0x7EA8FF)
     static let auroraPurple = Color(hex: 0xC48AFF)
     static let auroraAmber  = Color(hex: 0xFFD46B)
+    static let auroraMint   = Color(hex: 0x8AD7C9)
 
     // Brand gradient
-    static let brandStart = Color(hex: 0xFF6B9D)
-    static let brandEnd   = Color(hex: 0x7EA8FF)
+    static let brandStart  = Color(hex: 0xFF7A92)
+    static let brandEnd    = Color(hex: 0x6EA7FF)
+    static let brandAccent = Color(hex: 0x86DACD)
 
     // Semantics
     static let expenseRed = Color(hex: 0xD04A7A)

@@ -14,14 +14,54 @@ struct GlassCardModifier: ViewModifier {
                     .fill(.ultraThinMaterial)
                     .overlay(
                         RoundedRectangle(cornerRadius: radius, style: .continuous)
-                            .fill(Color.white.opacity(0.18))
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        AppColors.glassFillStrong,
+                                        AppColors.glassTint,
+                                        Color.white.opacity(0.08)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
                     )
+                    .overlay(alignment: .top) {
+                        RoundedRectangle(cornerRadius: radius, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        AppColors.innerGlow,
+                                        Color.white.opacity(0.08),
+                                        .clear
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .frame(height: max(44, radius * 1.35))
+                            .mask(
+                                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                            )
+                    }
             }
             .overlay(
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(strokeOpacity), lineWidth: 1)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(min(1, strokeOpacity + 0.16)),
+                                AppColors.glassBorderSoft.opacity(0.95),
+                                Color.white.opacity(0.16)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
             )
-            .shadow(color: Color(hex: 0x503C78).opacity(0.10), radius: 16, x: 0, y: 8)
+            .shadow(color: AppColors.surfaceShadow, radius: 24, x: 0, y: 14)
+            .shadow(color: Color.white.opacity(0.18), radius: 1.5, x: 0, y: -1)
     }
 }
 
@@ -39,8 +79,19 @@ struct DarkGlassModifier: ViewModifier {
         content
             .background(
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(AppColors.ink)
+                    .fill(
+                        LinearGradient(
+                            colors: [AppColors.ink, Color(hex: 0x303655)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: radius, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+                    )
             )
+            .shadow(color: AppColors.surfaceShadowStrong, radius: 18, x: 0, y: 10)
     }
 }
 

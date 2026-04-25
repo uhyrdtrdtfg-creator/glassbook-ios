@@ -24,112 +24,47 @@ struct ProfileView: View {
     @State private var showWidgetHelp = false
     @State private var showEditProfile = false
 
+    private let overviewColumns = [
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10)
+    ]
+
     var body: some View {
         ScrollView {
-            VStack(spacing: 14) {
-                profileCard
-                statRow
-
-                menuGroup(title: "Hero 功能", rows: [
-                    .init(icon: "target", label: "储蓄目标",
-                          value: "\(store.goals.count) 个 · 累计 \(Money.yuan(store.totalSavedCents, showDecimals: false))",
-                          action: { showGoals = true }),
-                    .init(icon: "repeat", label: "订阅管理",
-                          value: "¥\(store.monthlySubscriptionTotalCents / 100)/月",
-                          action: { showSubscriptions = true }),
-                    .init(icon: "sparkles", label: "\(Calendar.current.component(.year, from: Date())) 年度回顾",
-                          value: "Glassbook Wrapped",
-                          action: { showAnnualWrap = true }),
-                    .init(icon: "lightbulb", label: "消费洞察",
-                          value: "AI 每日更新",
-                          action: { showInsights = true }),
-                ])
-
-                menuGroup(title: "家庭", rows: [
-                    .init(icon: "house", label: "家庭账本 (\(store.familyGroupName))",
-                          value: "\(store.familyMembers.count) 人 · " + Money.yuan(store.familyTotalThisMonthCents, showDecimals: false),
-                          action: { showFamily = true }),
-                ])
-
-                menuGroup(title: "资金", rows: [
-                    .init(icon: "creditcard", label: "账户与净资产",
-                          value: "\(store.accounts.count) 个账户",
-                          action: { showAccounts = true }),
-                    .init(icon: "target", label: "预算设置",
-                          value: Money.yuan(store.budget.monthlyTotalCents, showDecimals: false),
-                          action: { showBudget = true }),
-                ])
-
-                menuGroup(title: "数据", rows: [
-                    .init(icon: "viewfinder", label: "智能识别",
-                          value: "支付宝 · 微信 · 招行",
-                          action: { showSmartImport = true }),
-                    .init(icon: "arrow.down.doc", label: "数据导出",
-                          value: "PDF · 发票",
-                          action: { showExport = true }),
-                    .init(icon: "externaldrive.badge.minus", label: "清除数据 / 重置演示",
-                          value: "\(store.transactions.count) 笔交易",
-                          action: { showDataManagement = true }),
-                ])
-
-                menuGroup(title: "开发者 · Pro", rows: [
-                    .init(icon: "bubble.left.and.bubble.right", label: "问账 · AI 财务顾问",
-                          value: "多轮对话",
-                          action: { showAdvisor = true }),
-                    .init(icon: "doc.badge.arrow.up", label: "发票 / 报销导出",
-                          value: "PDF",
-                          action: { showExport = true }),
-                    .init(icon: "brain", label: "AI 引擎 · BYO LLM",
-                          value: AIEngineStore.shared.selected.displayName,
-                          action: { showAIEngine = true }),
-                    .init(icon: "bell.and.waves.left.and.right", label: "Webhook · 设备直出",
-                          value: "\(WebhookStore.shared.endpoints.count) 端点",
-                          action: { showWebhooks = true }),
-                    .init(icon: "bolt.horizontal", label: "自动化记账",
-                          value: "截屏 · 快捷指令",
-                          action: { showAutomation = true }),
-                    .init(icon: "exclamationmark.arrow.triangle.2.circlepath", label: "沉没成本分析",
-                          value: "闲置订阅 + 吃灰硬件",
-                          action: { showSunkCost = true }),
-                ])
-
-                menuGroup(title: "其他", rows: [
-                    .init(icon: "lock.shield", label: "Face ID 解锁",
-                          value: lockStatus,
-                          action: { showLockSettings = true }),
-                    .init(icon: "rectangle.on.rectangle", label: "桌面小组件",
-                          value: "怎么添加",
-                          action: { showWidgetHelp = true }),
-                    .init(icon: "info.circle", label: "关于 Glassbook",
-                          value: appVersion,
-                          action: { showAbout = true }),
-                ])
-                Spacer().frame(height: 100)
+            VStack(spacing: 16) {
+                profileHero
+                overviewGrid
+                spotlightStrip
+                menuGroup(title: "Hero 功能", subtitle: "围绕记账之外的目标、洞察和年度体验") { heroRows }
+                menuGroup(title: "家庭与资金", subtitle: "账户、预算和家庭账本集中管理") { financeRows }
+                menuGroup(title: "数据与自动化", subtitle: "导入、导出、自动化和系统接入") { dataRows }
+                menuGroup(title: "设置与关于", subtitle: "安全、组件和应用信息") { settingsRows }
+                Spacer().frame(height: 110)
             }
             .padding(.horizontal, 18)
             .padding(.top, 6)
         }
         .scrollIndicators(.hidden)
         .safeAreaPadding(.top, 8)
-        .sheet(isPresented: $showBudget)        { sheet { BudgetView() } }
-        .sheet(isPresented: $showAccounts)      { sheet { AccountsView() } }
+        .sheet(isPresented: $showBudget) { sheet { BudgetView() } }
+        .sheet(isPresented: $showAccounts) { sheet { AccountsView() } }
         .sheet(isPresented: $showSubscriptions) { sheet { SubscriptionsView() } }
-        .sheet(isPresented: $showGoals)         { sheet { GoalsView() } }
-        .sheet(isPresented: $showInsights)      { sheet { InsightsView(isStandalone: true) } }
-        .sheet(isPresented: $showAIEngine)      { AIEngineSettingsView() }
-        .sheet(isPresented: $showWebhooks)      { WebhookSettingsView() }
-        .sheet(isPresented: $showAutomation)    { AutomationSettingsView() }
-        .sheet(isPresented: $showSunkCost)      { sheet { SunkCostView() } }
-        .sheet(isPresented: $showFamily)        { sheet { FamilyBookView() } }
+        .sheet(isPresented: $showGoals) { sheet { GoalsView() } }
+        .sheet(isPresented: $showInsights) { sheet { InsightsView(isStandalone: true) } }
+        .sheet(isPresented: $showAIEngine) { AIEngineSettingsView() }
+        .sheet(isPresented: $showWebhooks) { WebhookSettingsView() }
+        .sheet(isPresented: $showAutomation) { AutomationSettingsView() }
+        .sheet(isPresented: $showSunkCost) { sheet { SunkCostView() } }
+        .sheet(isPresented: $showFamily) { sheet { FamilyBookView() } }
         .fullScreenCover(isPresented: $showAdvisor) {
             AdvisorView().environment(store)
         }
-        .sheet(isPresented: $showExport)        { sheet { InvoiceExportView() } }
+        .sheet(isPresented: $showExport) { sheet { InvoiceExportView() } }
         .sheet(isPresented: $showDataManagement) { sheet { DataManagementView() } }
-        .sheet(isPresented: $showLockSettings)   { sheet { LockSettingsView() }.environment(lock) }
-        .sheet(isPresented: $showAbout)          { AboutView() }
-        .sheet(isPresented: $showWidgetHelp)     { WidgetHelpView() }
-        .sheet(isPresented: $showEditProfile)    { sheet { EditProfileSheet() } }
+        .sheet(isPresented: $showLockSettings) { sheet { LockSettingsView() }.environment(lock) }
+        .sheet(isPresented: $showAbout) { AboutView() }
+        .sheet(isPresented: $showWidgetHelp) { WidgetHelpView() }
+        .sheet(isPresented: $showEditProfile) { sheet { EditProfileSheet() } }
         .fullScreenCover(isPresented: $showSmartImport) {
             SmartImportFlow(isPresented: $showSmartImport)
         }
@@ -139,8 +74,8 @@ struct ProfileView: View {
     }
 
     private var appVersion: String {
-        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
-        return "v\(v)"
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        return "v\(version)"
     }
 
     private var lockStatus: String {
@@ -156,6 +91,15 @@ struct ProfileView: View {
         }
     }
 
+    private var streakDisplay: String {
+        let count = store.dailyStreak
+        return count == 0 ? "未开始" : "\(count) 天"
+    }
+
+    private var autoImportSummary: String {
+        store.autoImportedCountThisMonth == 0 ? "本月暂无智能导入" : "本月 \(store.autoImportedCountThisMonth) 笔自动导入"
+    }
+
     @ViewBuilder
     private func sheet<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         ZStack {
@@ -165,68 +109,278 @@ struct ProfileView: View {
         .environment(store)
     }
 
-    private var profileCard: some View {
+    private var profileHero: some View {
         Button { showEditProfile = true } label: {
-            HStack(spacing: 14) {
-                ZStack {
-                    Circle().fill(LinearGradient(
-                        colors: [AppColors.auroraPink, AppColors.auroraPurple],
-                        startPoint: .topLeading, endPoint: .bottomTrailing))
-                    Text(store.userInitial)
-                        .font(.system(size: 22, weight: .medium))
-                        .foregroundStyle(.white)
-                }
-                .frame(width: 56, height: 56)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(store.userName).font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(AppColors.ink)
-                    Text("点这里改昵称 / 家庭名").font(.system(size: 11))
-                        .foregroundStyle(AppColors.ink3)
-                    if store.isPro {
-                        Text("PRO 会员")
-                            .font(.system(size: 10)).tracking(0.8)
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [AppColors.auroraPink, AppColors.brandEnd],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                        Circle().strokeBorder(Color.white.opacity(0.34), lineWidth: 1)
+                        Text(store.userInitial)
+                            .font(.system(size: 26, weight: .semibold))
                             .foregroundStyle(.white)
-                            .padding(.horizontal, 10).padding(.vertical, 3)
-                            .background(Capsule().fill(LinearGradient.brand()))
                     }
+                    .frame(width: 68, height: 68)
+                    .shadow(color: AppColors.surfaceShadow.opacity(0.55), radius: 12, x: 0, y: 8)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            Text(store.userName)
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundStyle(AppColors.ink)
+                            if store.isPro {
+                                Text("PRO")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Capsule().fill(LinearGradient.brand()))
+                            }
+                        }
+
+                        Text(store.familyGroupName)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(AppColors.ink2)
+
+                        Text("点这里编辑昵称、家庭名和个人资料")
+                            .font(.system(size: 11))
+                            .foregroundStyle(AppColors.ink3)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(AppColors.ink4)
                 }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppColors.ink4)
+
+                HStack(spacing: 8) {
+                    heroPill(icon: "person.2.fill", text: "\(store.familyMembers.count) 位家人")
+                    heroPill(icon: "sparkles", text: autoImportSummary)
+                    heroPill(icon: "flame.fill", text: streakDisplay)
+                }
             }
             .padding(22)
-            .contentShape(Rectangle())
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                RoundedRectangle(cornerRadius: Radius.xl, style: .continuous)
+                    .fill(Color.clear)
+                    .overlay(alignment: .topTrailing) {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [AppColors.brandEnd.opacity(0.28), AppColors.brandStart.opacity(0.18), .clear],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 190, height: 190)
+                            .offset(x: 56, y: -86)
+                    }
+            }
         }
         .buttonStyle(.plain)
-        .glassCard()
+        .glassCard(radius: Radius.xl)
     }
 
-    private var statRow: some View {
-        HStack(spacing: 0) {
-            stat("已记笔数", value: "\(store.transactions.count)")
-            Divider().background(AppColors.glassDivider)
-            stat("连续打卡", value: streakDisplay)
-            Divider().background(AppColors.glassDivider)
-            stat("累计存款", value: Money.yuan(store.totalSavedCents, showDecimals: false))
+    private func heroPill(icon: String, text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .semibold))
+            Text(text)
+                .font(.system(size: 10, weight: .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
-        .padding(.vertical, 14)
-        .glassCard()
+        .foregroundStyle(AppColors.ink2)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Capsule().fill(Color.white.opacity(0.30)))
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.34), lineWidth: 1))
     }
 
-    private var streakDisplay: String {
-        let n = store.dailyStreak
-        return n == 0 ? "—" : "\(n) 天"
-    }
-
-    private func stat(_ label: String, value: String) -> some View {
-        VStack(spacing: 4) {
-            Text(label).eyebrowStyle()
-            Text(value).font(.system(size: 16, weight: .light).monospacedDigit())
-                .minimumScaleFactor(0.7).lineLimit(1)
+    private var overviewGrid: some View {
+        LazyVGrid(columns: overviewColumns, spacing: 10) {
+            overviewCard(
+                title: "净资产",
+                value: Money.yuan(store.netWorthCents, showDecimals: false),
+                subtitle: "\(store.accounts.count) 个账户",
+                gradient: [AppColors.brandStart, AppColors.brandEnd]
+            )
+            overviewCard(
+                title: "订阅支出",
+                value: Money.yuan(store.monthlySubscriptionTotalCents, showDecimals: false),
+                subtitle: "每月固定开支",
+                gradient: [AppColors.auroraAmber, AppColors.brandStart]
+            )
+            overviewCard(
+                title: "累计记账",
+                value: "\(store.transactions.count) 笔",
+                subtitle: "连续打卡 \(streakDisplay)",
+                gradient: [AppColors.brandEnd, AppColors.brandAccent]
+            )
+            overviewCard(
+                title: "储蓄目标",
+                value: "\(store.goals.count) 个",
+                subtitle: "已存 \(Money.yuan(store.totalSavedCents, showDecimals: false))",
+                gradient: [AppColors.auroraPurple, AppColors.auroraPink]
+            )
         }
-        .frame(maxWidth: .infinity)
+    }
+
+    private func overviewCard(title: String, value: String, subtitle: String, gradient: [Color]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(LinearGradient.gradient(gradient))
+                .frame(width: 38, height: 38)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.22), lineWidth: 1)
+                )
+
+            Text(title)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(AppColors.ink3)
+            Text(value)
+                .font(.system(size: 19, weight: .semibold).monospacedDigit())
+                .foregroundStyle(AppColors.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(subtitle)
+                .font(.system(size: 11))
+                .foregroundStyle(AppColors.ink3)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, minHeight: 142, alignment: .leading)
+        .padding(16)
+        .glassCard(radius: 20)
+    }
+
+    private var spotlightStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                spotlightCard(
+                    title: "储蓄目标",
+                    subtitle: "\(store.goals.count) 个目标 · 已存 \(Money.yuan(store.totalSavedCents, showDecimals: false))",
+                    icon: "target",
+                    gradient: [AppColors.brandStart, AppColors.auroraAmber]
+                ) {
+                    showGoals = true
+                }
+
+                spotlightCard(
+                    title: "智能识别",
+                    subtitle: "支付宝、微信、招行账单一键导入",
+                    icon: "sparkles.rectangle.stack.fill",
+                    gradient: [AppColors.brandEnd, AppColors.brandAccent]
+                ) {
+                    showSmartImport = true
+                }
+
+                spotlightCard(
+                    title: "年度回顾",
+                    subtitle: "\(Calendar.current.component(.year, from: Date())) 年消费故事已准备好",
+                    icon: "sparkles",
+                    gradient: [AppColors.auroraPurple, AppColors.brandStart]
+                ) {
+                    showAnnualWrap = true
+                }
+
+                spotlightCard(
+                    title: "AI 财务顾问",
+                    subtitle: "用自然语言直接问账和预算",
+                    icon: "bubble.left.and.bubble.right.fill",
+                    gradient: [AppColors.auroraAmber, AppColors.brandEnd]
+                ) {
+                    showAdvisor = true
+                }
+            }
+            .padding(.horizontal, 2)
+        }
+    }
+
+    private func spotlightCard(
+        title: String,
+        subtitle: String,
+        icon: String,
+        gradient: [Color],
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(LinearGradient.gradient(gradient))
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.22), lineWidth: 1)
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 44, height: 44)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppColors.ink)
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(AppColors.ink3)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
+                }
+            }
+            .frame(width: 228)
+            .frame(minHeight: 138, alignment: .leading)
+            .padding(16)
+            .glassCard(radius: 20)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var heroRows: [MenuRow] {
+        [
+            .init(icon: "target", label: "储蓄目标", value: "\(store.goals.count) 个 · 累计 \(Money.yuan(store.totalSavedCents, showDecimals: false))", action: { showGoals = true }),
+            .init(icon: "repeat", label: "订阅管理", value: "\(Money.yuan(store.monthlySubscriptionTotalCents, showDecimals: false))/月", action: { showSubscriptions = true }),
+            .init(icon: "sparkles", label: "\(Calendar.current.component(.year, from: Date())) 年度回顾", value: "Glassbook Wrapped", action: { showAnnualWrap = true }),
+            .init(icon: "lightbulb", label: "消费洞察", value: "AI 每日更新", action: { showInsights = true }),
+            .init(icon: "bubble.left.and.bubble.right", label: "问账 · AI 财务顾问", value: "多轮对话", action: { showAdvisor = true }),
+            .init(icon: "exclamationmark.arrow.triangle.2.circlepath", label: "沉没成本分析", value: "闲置订阅 + 吃灰硬件", action: { showSunkCost = true })
+        ]
+    }
+
+    private var financeRows: [MenuRow] {
+        [
+            .init(icon: "house", label: "家庭账本 (\(store.familyGroupName))", value: "\(store.familyMembers.count) 人 · \(Money.yuan(store.familyTotalThisMonthCents, showDecimals: false))", action: { showFamily = true }),
+            .init(icon: "creditcard", label: "账户与净资产", value: "\(store.accounts.count) 个账户", action: { showAccounts = true }),
+            .init(icon: "target", label: "预算设置", value: Money.yuan(store.budget.monthlyTotalCents, showDecimals: false), action: { showBudget = true })
+        ]
+    }
+
+    private var dataRows: [MenuRow] {
+        [
+            .init(icon: "viewfinder", label: "智能识别", value: "支付宝 · 微信 · 招行", action: { showSmartImport = true }),
+            .init(icon: "arrow.down.doc", label: "数据导出", value: "PDF · 发票", action: { showExport = true }),
+            .init(icon: "brain", label: "AI 引擎 · BYO LLM", value: AIEngineStore.shared.selected.displayName, action: { showAIEngine = true }),
+            .init(icon: "bell.and.waves.left.and.right", label: "Webhook · 设备直出", value: "\(WebhookStore.shared.endpoints.count) 端点", action: { showWebhooks = true }),
+            .init(icon: "bolt.horizontal", label: "自动化记账", value: "截屏 · 快捷指令", action: { showAutomation = true }),
+            .init(icon: "externaldrive.badge.minus", label: "清除数据 / 重置演示", value: "\(store.transactions.count) 笔交易", action: { showDataManagement = true })
+        ]
+    }
+
+    private var settingsRows: [MenuRow] {
+        [
+            .init(icon: "lock.shield", label: "Face ID 解锁", value: lockStatus, action: { showLockSettings = true }),
+            .init(icon: "rectangle.on.rectangle", label: "桌面小组件", value: "怎么添加", action: { showWidgetHelp = true }),
+            .init(icon: "info.circle", label: "关于 Glassbook", value: appVersion, action: { showAbout = true })
+        ]
     }
 
     struct MenuRow: Identifiable {
@@ -237,44 +391,111 @@ struct ProfileView: View {
         var action: (() -> Void)? = nil
     }
 
-    private func menuGroup(title: String, rows: [MenuRow]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).eyebrowStyle().padding(.leading, 4)
+    private func menuGroup(title: String, subtitle: String, rows: () -> [MenuRow]) -> some View {
+        let items = rows()
+
+        return VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(AppColors.ink)
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundStyle(AppColors.ink3)
+            }
+            .padding(.horizontal, 4)
+
             VStack(spacing: 0) {
-                ForEach(Array(rows.enumerated()), id: \.element.id) { idx, row in
-                    if idx > 0 { Divider().background(AppColors.glassDivider).padding(.horizontal, 10) }
+                ForEach(Array(items.enumerated()), id: \.element.id) { idx, row in
+                    if idx > 0 {
+                        Divider()
+                            .background(AppColors.glassDivider)
+                            .padding(.horizontal, 10)
+                    }
                     Button {
                         row.action?()
                     } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: row.icon)
-                                .font(.system(size: 13))
-                                .foregroundStyle(AppColors.ink2)
-                                .frame(width: 30, height: 30)
-                                .background(RoundedRectangle(cornerRadius: 9).fill(Color.white.opacity(0.5)))
-                            Text(row.label).font(.system(size: 13))
-                                .foregroundStyle(AppColors.ink)
-                            Spacer()
-                            Text(row.value).font(.system(size: 11))
-                                .foregroundStyle(AppColors.ink3)
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(LinearGradient.gradient(iconGradient(for: row.icon)))
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .strokeBorder(Color.white.opacity(0.22), lineWidth: 1)
+                                Image(systemName: row.icon)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(.white)
+                            }
+                            .frame(width: 36, height: 36)
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(row.label)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(AppColors.ink)
+                                Text(row.value)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(AppColors.ink3)
+                                    .lineLimit(1)
+                            }
+
+                            Spacer(minLength: 8)
+
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 11))
+                                .font(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(AppColors.ink4)
                         }
-                        .padding(.vertical, 12).padding(.horizontal, 10)
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 10)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(4)
-            .glassCard()
+            .glassCard(radius: 22)
+        }
+    }
+
+    private func iconGradient(for icon: String) -> [Color] {
+        switch icon {
+        case "target":
+            return [AppColors.brandStart, AppColors.auroraAmber]
+        case "repeat":
+            return [AppColors.auroraAmber, AppColors.brandStart]
+        case "sparkles", "lightbulb":
+            return [AppColors.auroraPurple, AppColors.brandStart]
+        case "bubble.left.and.bubble.right", "bubble.left.and.bubble.right.fill":
+            return [AppColors.brandEnd, AppColors.brandAccent]
+        case "house":
+            return [AppColors.brandAccent, AppColors.brandEnd]
+        case "creditcard":
+            return [AppColors.brandEnd, AppColors.auroraPurple]
+        case "viewfinder":
+            return [AppColors.brandEnd, AppColors.brandAccent]
+        case "arrow.down.doc", "doc.badge.arrow.up":
+            return [AppColors.auroraAmber, AppColors.brandEnd]
+        case "brain":
+            return [AppColors.auroraPurple, AppColors.brandEnd]
+        case "bell.and.waves.left.and.right", "bolt.horizontal":
+            return [AppColors.brandStart, AppColors.brandEnd]
+        case "externaldrive.badge.minus":
+            return [AppColors.expenseRed, AppColors.auroraPink]
+        case "lock.shield":
+            return [AppColors.ink2, AppColors.ink]
+        case "rectangle.on.rectangle":
+            return [AppColors.brandAccent, AppColors.auroraAmber]
+        case "info.circle":
+            return [AppColors.brandEnd, AppColors.auroraPurple]
+        case "exclamationmark.arrow.triangle.2.circlepath":
+            return [AppColors.expenseRed, AppColors.auroraAmber]
+        default:
+            return [AppColors.brandStart, AppColors.brandEnd]
         }
     }
 }
 
 #Preview {
-    let lock = AppLock(); lock.skipAuth = true
+    let lock = AppLock()
+    lock.skipAuth = true
     return ZStack {
         AuroraBackground(palette: .profile)
         ProfileView().environment(AppStore()).environment(lock)
