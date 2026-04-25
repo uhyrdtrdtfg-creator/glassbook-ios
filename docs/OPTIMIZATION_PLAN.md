@@ -127,15 +127,18 @@
 - 批 2 · items 2 / 3 / 6 / 7 / 9 (3 commits, 2 + 3 / 6 + 7 各 1 commit 共体)
 - 批 3 · items 12 / 13 / 16 / 19 (4 commits)
 - 批 4 · items 11 / 14 / 17 / 20 (4 commits)
-- 批 5 · items 15 / 18 (2 commits)
+- 批 5 · items 15 / 18 (2 commits · view 半边)
+- 批 6 · 余项收口 (3 commits)
+  - [bfb6800](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/bfb6800) item 17 时钟注入 · 锁 2026-04-15T12:00:00Z 重录 baseline · 跨日不漂
+  - [ba7d3f5](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/ba7d3f5) item 18 service 层完整 DI · 新 `App/AppServices.swift` @Observable 容器 · 4 个 service 改 final class + init 注入 · 4 个 caller 走 `services.X.method()` · Test 跟进 + system prompt 也过 PIIRedactor (item 12 余项)
+  - [bbb2d79](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/bbb2d79) item 15 NavigationSplitView · iPad / Mac 走侧栏复用 TabKey enum + AccountsView AddAccountSheet `.large` detent
 
-**遗留**
-- Item 18 · service 层 (LLMClient / Classifier / OCR / Advisor) 仍 `.shared`,需 init 注入下次单独推
-- Item 15 · NavigationSplitView 大改 / HomeView 双栏 iPad layout 故意未做,等真有用户反馈再上
-- Item 17 · 视图 `Date()` 跨日漂,要做时钟注入才能真正 deterministic snapshot
+**仍未做** (没真用户反馈不动)
+- HomeView iPad 双栏 hero+spotlight side-by-side · 等数据多了再上
+- Snapshot 测覆盖更多页面 (ProfileView / AddTransaction sheet)
 
 ## 📊 实际花费 vs 估时
-- 总估 28.5h, 实跑 5 批并行 agent 每批 ~5-15 min, 累计 wall-clock < 1.5h
+- 总估 28.5h · 6 批并行 agent 每批 ~5-15 min · 累计 wall-clock < 2h
 - 主线程开销主要在 review / commit / plan doc
 
 ## 🔄 活清单怎么维护
