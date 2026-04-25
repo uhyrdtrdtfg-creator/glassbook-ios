@@ -40,6 +40,8 @@ struct RichTxFormView: View {
     @State private var values: Values
     @State private var amountEntry: String
     @State private var cursorBlink = true
+    @State private var hasEditedValues = false
+    @State private var showDiscardDialog = false
 
     init(title: String,
          saveLabel: String = "保存",
@@ -88,13 +90,21 @@ struct RichTxFormView: View {
             }
             .scrollIndicators(.hidden)
         }
+        .confirmationDialog("确定放弃修改?", isPresented: $showDiscardDialog, titleVisibility: .visible) {
+            Button("放弃", role: .destructive) { onCancel() }
+            Button("继续编辑", role: .cancel) { }
+        }
+    }
+
+    private func attemptCancel() {
+        if hasEditedValues { showDiscardDialog = true } else { onCancel() }
     }
 
     // MARK: - Top bar
 
     private var topBar: some View {
         HStack(spacing: 10) {
-            Button(action: onCancel) {
+            Button(action: attemptCancel) {
                 Text("取消").font(.system(size: 12))
                     .foregroundStyle(AppColors.ink2)
                     .frame(width: 56, height: 28)
@@ -123,7 +133,7 @@ struct RichTxFormView: View {
     private var kindToggle: some View {
         HStack(spacing: 4) {
             ForEach(Transaction.Kind.allCases, id: \.self) { k in
-                Button { values.kind = k } label: {
+                Button { values.kind = k; hasEditedValues = true } label: {
                     Text(label(for: k))
                         .font(.system(size: 12, weight: values.kind == k ? .medium : .regular))
                         .foregroundStyle(values.kind == k ? .white : AppColors.ink2)
@@ -185,7 +195,7 @@ struct RichTxFormView: View {
             Text("👁 可见范围 · 按笔隐私").eyebrowStyle()
             HStack(spacing: 6) {
                 ForEach(Visibility.allCases, id: \.self) { v in
-                    Button { values.visibility = v } label: {
+                    Button { values.visibility = v; hasEditedValues = true } label: {
                         HStack(spacing: 6) {
                             Text(v.emoji).font(.system(size: 12))
                             Text(v.displayName)
@@ -215,7 +225,7 @@ struct RichTxFormView: View {
     private var categoryGrid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
             ForEach(Category.all, id: \.id) { cat in
-                Button { values.categoryID = cat.id } label: {
+                Button { values.categoryID = cat.id; hasEditedValues = true } label: {
                     VStack(spacing: 5) {
                         Text(cat.emoji).font(.system(size: 20))
                         Text(cat.name).font(.system(size: 10))
@@ -248,14 +258,14 @@ struct RichTxFormView: View {
                 Text("😊 情绪").eyebrowStyle()
                 Spacer()
                 if values.mood != nil {
-                    Button("清除") { values.mood = nil }
+                    Button("清除") { values.mood = nil; hasEditedValues = true }
                         .font(.system(size: 10))
                         .foregroundStyle(AppColors.ink3)
                 }
             }
             HStack(spacing: 6) {
                 ForEach(Mood.allCases, id: \.self) { m in
-                    Button { values.mood = (values.mood == m ? nil : m) } label: {
+                    Button { values.mood = (values.mood == m ? nil : m); hasEditedValues = true } label: {
                         HStack(spacing: 4) {
                             Text(m.emoji).font(.system(size: 11))
                             Text(m.displayName)
@@ -288,8 +298,9 @@ struct RichTxFormView: View {
                     .font(.system(size: 13))
                     .foregroundStyle(AppColors.ink)
                     .autocorrectionDisabled()
+                    .onChange(of: values.merchant) { _, _ in hasEditedValues = true }
                 if !values.merchant.isEmpty {
-                    Button { values.merchant = "" } label: {
+                    Button { values.merchant = ""; hasEditedValues = true } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 13))
                             .foregroundStyle(AppColors.ink3)
@@ -309,6 +320,7 @@ struct RichTxFormView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(AppColors.ink)
                     .lineLimit(1...3)
+                    .onChange(of: values.note) { _, _ in hasEditedValues = true }
             }
             .padding(.horizontal, 16).padding(.vertical, 12)
         }
@@ -324,6 +336,7 @@ struct RichTxFormView: View {
                 .datePickerStyle(.compact)
                 .labelsHidden()
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .onChange(of: values.timestamp) { _, _ in hasEditedValues = true }
         }
         .padding(14)
         .glassCard(radius: 14)
@@ -358,5 +371,6 @@ struct RichTxFormView: View {
                amountEntry.distance(from: dot, to: amountEntry.endIndex) > 2 { return }
             if amountEntry == "0" { amountEntry = key } else { amountEntry.append(key) }
         }
+        hasEditedValues = true
     }
 }
