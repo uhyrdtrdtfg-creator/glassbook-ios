@@ -167,11 +167,16 @@ final class AdvisorChatService {
         以中文回答,简短直接,给具体数字。不要加 emoji。
         """
 
+        // §12 脱敏 · 用户可能直接问「我给 13800001111 转了 500 是什么」之类,
+        // 或把 OCR 出来的收据原文粘进聊天框。本地 messages 数组仍存原文用于展示,
+        // 只在发往云端那一瞬过一遍 PIIRedactor。
+        let redactedQ = PIIRedactor.redact(q)
+
         let reply = try await LLMClient.chat(
             engine: engine,
             messages: [
                 .init(role: "system", content: systemPrompt),
-                .init(role: "user", content: q),
+                .init(role: "user", content: redactedQ),
             ]
         )
         return .init(role: .assistant, content: reply)

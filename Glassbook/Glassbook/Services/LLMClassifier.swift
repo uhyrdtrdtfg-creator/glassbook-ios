@@ -73,9 +73,11 @@ enum LLMClassifier {
 
         // Each row gets a small integer id so the model can line up its output
         // with the input even if it reorders.
+        // §12 脱敏 · merchant 偶尔有「XX 外卖 · 13812345678」这种带手机号的串,
+        // 或商户注册名里塞完整地址,发云端前过一遍。金额不过,本来就是数字。
         struct Item: Encodable { let id: Int; let merchant: String; let amount_yuan: Double }
         let items: [Item] = rows.enumerated().map { idx, row in
-            Item(id: idx + 1, merchant: row.merchant,
+            Item(id: idx + 1, merchant: PIIRedactor.redact(row.merchant),
                  amount_yuan: Double(row.amountCents) / 100.0)
         }
         let payload = try JSONEncoder().encode(items)
@@ -150,6 +152,10 @@ enum LLMClassifier {
         let engine = AIEngineStore.shared.selected
         if engine == .appleIntelligence { return nil }
 
+        // §12 脱敏 · 用户可能手工把地址塞进了 merchant 字段 (比如「家附近
+        // 便利店 · 朝阳区xxx号」),简化名字之前先把明显 PII 掩掉再发云端。
+        let redacted = PIIRedactor.redact(trimmed)
+
         // 用三反引号包裹避免模型把商户名里的冒号/引号当成指令边界。
         let userPrompt = """
         把下面这个商户名简化成用户日常口头叫的版本,去掉"xxx有限公司"、"xx市xx区"、\
@@ -158,7 +164,7 @@ enum LLMClassifier {
 
         输入:
         ```
-        \(trimmed)
+        \(redacted)
         ```
         """
 

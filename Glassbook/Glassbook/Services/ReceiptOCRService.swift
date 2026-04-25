@@ -148,8 +148,10 @@ enum ReceiptOCRService {
         }
 
         let year = Calendar.current.component(.year, from: Date())
+        // §12 脱敏 · 收据明细里常有卡尾号 / 送货地址 / 取餐手机号,发云端前过一遍。
+        // 原始 lines 仍挂在返回的 Result.rawText 上,UI 照常展示未脱敏版。
         let rawJoined = lines.enumerated()
-            .map { "\($0.offset + 1). \($0.element)" }
+            .map { "\($0.offset + 1). \(PIIRedactor.redact($0.element))" }
             .joined(separator: "\n")
 
         let systemPrompt = """
