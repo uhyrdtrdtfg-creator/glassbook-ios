@@ -27,6 +27,8 @@ struct SmartImportEntryScreen: View {
     @State private var latestError: String?
     @State private var latestLoading: Bool = false
 
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+
     var body: some View {
         VStack(spacing: 0) {
             nav
@@ -42,6 +44,9 @@ struct SmartImportEntryScreen: View {
                     Spacer().frame(height: 20)
                 }
                 .padding(.horizontal, 18)
+                // why: keep the import column readable on iPad / Mac.
+                .frame(maxWidth: hSizeClass == .regular ? 640 : .infinity)
+                .frame(maxWidth: .infinity)
             }
         }
         .safeAreaPadding(.top, 8)

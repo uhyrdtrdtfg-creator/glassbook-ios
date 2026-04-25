@@ -3,6 +3,7 @@ import SwiftUI
 /// Spec §4.5 · 预算管理
 struct BudgetView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var showEdit = false
 
     var body: some View {
@@ -14,6 +15,9 @@ struct BudgetView: View {
                 Spacer().frame(height: 100)
             }
             .padding(.horizontal, 18)
+            // why: keep the budget readout in a comfortable column on iPad / Mac.
+            .frame(maxWidth: hSizeClass == .regular ? 640 : .infinity)
+            .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
         .safeAreaPadding(.top, 8)

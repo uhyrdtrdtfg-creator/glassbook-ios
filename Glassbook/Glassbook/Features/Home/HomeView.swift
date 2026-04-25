@@ -3,6 +3,7 @@ import SwiftUI
 /// Spec §4.1 · 首页 · 本月总览
 struct HomeView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var showReceiptScan = false
     @State private var showSmartImport = false
     @State private var pendingEdit: PendingReceipt?
@@ -30,6 +31,9 @@ struct HomeView: View {
             }
             .padding(.horizontal, 18)
             .padding(.top, 6)
+            // why: keep cards in a comfortable reading column on iPad / Mac.
+            .frame(maxWidth: hSizeClass == .regular ? 760 : .infinity)
+            .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
         .safeAreaPadding(.top, 8)

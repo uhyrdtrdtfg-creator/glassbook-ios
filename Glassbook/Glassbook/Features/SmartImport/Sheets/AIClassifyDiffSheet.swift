@@ -22,6 +22,7 @@ struct AIClassifyDiffSheet: View {
     var onApply: ([AIClassifyDiffItem]) -> Void
     var onCancel: () -> Void
 
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var checkedIDs: Set<AIClassifyDiffItem.ID> = []
 
     var body: some View {
@@ -32,6 +33,8 @@ struct AIClassifyDiffSheet: View {
                 list
                 footer
             }
+            // why: keep the diff column readable on iPad / Mac.
+            .frame(maxWidth: hSizeClass == .regular ? 720 : .infinity)
         }
         .onAppear { checkedIDs = Set(diff.map(\.id)) }  // 默认全选
     }

@@ -4,6 +4,7 @@ import SwiftUI
 struct GoalsView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var selected: SavingsGoal?
     @State private var showAdd = false
 
@@ -21,6 +22,9 @@ struct GoalsView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 8)
+                // why: cap reading width on iPad / Mac so the 2-column grid stays compact.
+                .frame(maxWidth: hSizeClass == .regular ? 760 : .infinity)
+                .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
         }

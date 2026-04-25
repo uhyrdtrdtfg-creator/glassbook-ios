@@ -5,6 +5,7 @@ import SwiftUI
 struct OnboardingFlow: View {
     @Binding var isPresented: Bool
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var step: Int = 0
 
     var body: some View {
@@ -35,6 +36,8 @@ struct OnboardingFlow: View {
 
                 Spacer(minLength: 0)
             }
+            // why: keep the walkthrough centered on iPad / Mac instead of edge-to-edge.
+            .frame(maxWidth: hSizeClass == .regular ? 560 : .infinity)
         }
         .interactiveDismissDisabled()
     }

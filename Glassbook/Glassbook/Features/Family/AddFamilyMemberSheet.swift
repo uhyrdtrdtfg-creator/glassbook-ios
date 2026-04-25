@@ -6,6 +6,7 @@ import SwiftUI
 struct AddFamilyMemberSheet: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var hSizeClass
 
     @State private var name = ""
     @State private var initial = ""
@@ -33,6 +34,9 @@ struct AddFamilyMemberSheet: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 12)
+                // why: keep the form column readable on iPad / Mac.
+                .frame(maxWidth: hSizeClass == .regular ? 560 : .infinity)
+                .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
         }

@@ -3,6 +3,7 @@ import SwiftUI
 /// Spec §4.3 · 账单明细
 struct BillsView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var month: Date = Date()
     @State private var filterCategory: Category.Slug? = nil
     @State private var showFilter = false
@@ -47,6 +48,9 @@ struct BillsView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 6)
+                // why: cap reading width on iPad / Mac so the day cards don't span the whole canvas.
+                .frame(maxWidth: hSizeClass == .regular ? 760 : .infinity)
+                .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
             .safeAreaPadding(.top, 8)
@@ -60,7 +64,7 @@ struct BillsView: View {
             .animation(.easeInOut(duration: 0.2), value: selectedIDs.isEmpty)
             .sheet(isPresented: $showFilter) {
                 FilterSheet(selected: $filterCategory)
-                    .presentationDetents([.medium])
+                    .presentationDetents([.large, .medium])
             }
             .sheet(item: Binding(
                 get: { editingTxID.map { IDWrap(id: $0) } },
@@ -68,6 +72,8 @@ struct BillsView: View {
             )) { wrap in
                 EditTransactionSheet(txID: wrap.id)
                     .environment(store)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
             .onChange(of: scenePhase) { _, newPhase in
                 // Don't let the 5s timer outlive the app going to background —

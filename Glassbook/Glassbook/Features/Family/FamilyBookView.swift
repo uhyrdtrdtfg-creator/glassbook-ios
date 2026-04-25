@@ -6,6 +6,7 @@ import SwiftUI
 struct FamilyBookView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var showAddMember = false
     @State private var sharing = FamilySharingService.shared
     @State private var showLeaveConfirm = false
@@ -30,6 +31,9 @@ struct FamilyBookView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 8)
+                // why: keep cards in a comfortable reading column on iPad / Mac.
+                .frame(maxWidth: hSizeClass == .regular ? 720 : .infinity)
+                .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
             if let toastMessage {

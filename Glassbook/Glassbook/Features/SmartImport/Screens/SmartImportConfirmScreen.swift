@@ -43,6 +43,8 @@ struct SmartImportConfirmScreen: View {
         )) { row in
             if let idx = rows.firstIndex(where: { $0.id == row.id }) {
                 EditPendingRowSheet(row: $rows[idx]) { editingRowID = nil }
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
         }
         .sheet(isPresented: $showDiffSheet) {
@@ -54,6 +56,8 @@ struct SmartImportConfirmScreen: View {
                 },
                 onCancel: { showDiffSheet = false }
             )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
     }
 

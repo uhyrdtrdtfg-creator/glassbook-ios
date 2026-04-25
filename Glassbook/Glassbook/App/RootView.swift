@@ -46,6 +46,7 @@ struct RootView: View {
         }
         .sheet(isPresented: $showingOnboarding) {
             OnboardingFlow(isPresented: $showingOnboarding)
+                .presentationDetents([.large])
         }
         .onAppear {
             if !hasCompletedOnboarding { showingOnboarding = true }

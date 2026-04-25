@@ -5,6 +5,7 @@ import SwiftUI
 struct InvoiceExportView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var hSizeClass
 
     @State private var startDate: Date = Calendar.current.date(byAdding: .month, value: -1, to: .now) ?? .now
     @State private var endDate: Date = .now
@@ -30,6 +31,9 @@ struct InvoiceExportView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 8)
+                // why: center the form on iPad / Mac so it doesn't stretch edge-to-edge.
+                .frame(maxWidth: hSizeClass == .regular ? 600 : .infinity)
+                .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
         }

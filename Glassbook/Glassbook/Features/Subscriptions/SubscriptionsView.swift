@@ -4,6 +4,7 @@ import SwiftUI
 struct SubscriptionsView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var showAdd = false
 
     var body: some View {
@@ -25,6 +26,9 @@ struct SubscriptionsView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 8)
+                // why: cap reading width on iPad / Mac.
+                .frame(maxWidth: hSizeClass == .regular ? 720 : .infinity)
+                .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
         }

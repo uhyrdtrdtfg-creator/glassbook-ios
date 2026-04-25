@@ -4,6 +4,7 @@ import SwiftUI
 struct AddTransactionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppStore.self) private var store
+    @Environment(\.horizontalSizeClass) private var hSizeClass
 
     var onPresentSmartImport: () -> Void = {}
     /// Opening with a receipt result auto-populates the form (amount / merchant
@@ -43,6 +44,9 @@ struct AddTransactionView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 16)
+                // why: keep the form readable on iPad / Mac instead of stretched edge-to-edge.
+                .frame(maxWidth: hSizeClass == .regular ? 560 : .infinity)
+                .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.hidden)
             .onAppear {
