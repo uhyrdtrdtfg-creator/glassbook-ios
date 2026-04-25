@@ -41,6 +41,9 @@ final class WebhookStore {
     struct Endpoint: Codable, Identifiable, Hashable {
         var id: UUID
         var name: String
+        /// Bearer-equivalent secret. NOT persisted via Codable — lives in Keychain,
+        /// populated in-memory from Keychain on load. The UI still binds to this
+        /// field; `WebhookStore` mirrors edits into the Keychain on save.
         var url: String
         var platform: Platform
         var enabledTriggers: Set<Trigger>
@@ -71,6 +74,50 @@ final class WebhookStore {
                 }
             }
         }
+
+        // `url` is deliberately absent — it's a secret that belongs in Keychain,
+        // not UserDefaults. Every other field stays in UD metadata as before.
+        private enum CodingKeys: String, CodingKey {
+            case id, name, platform, enabledTriggers, isEnabled
+            case httpMethod, useCustomBody, contentType, bodyTemplate
+        }
+
+        init(id: UUID,
+             name: String,
+             url: String,
+             platform: Platform,
+             enabledTriggers: Set<Trigger>,
+             isEnabled: Bool = true,
+             httpMethod: HTTPMethod = .post,
+             useCustomBody: Bool = false,
+             contentType: String = "application/json; charset=utf-8",
+             bodyTemplate: String = "") {
+            self.id = id
+            self.name = name
+            self.url = url
+            self.platform = platform
+            self.enabledTriggers = enabledTriggers
+            self.isEnabled = isEnabled
+            self.httpMethod = httpMethod
+            self.useCustomBody = useCustomBody
+            self.contentType = contentType
+            self.bodyTemplate = bodyTemplate
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.id = try c.decode(UUID.self, forKey: .id)
+            self.name = try c.decode(String.self, forKey: .name)
+            self.url = "" // populated by WebhookStore from Keychain post-decode
+            self.platform = try c.decode(Platform.self, forKey: .platform)
+            self.enabledTriggers = try c.decode(Set<Trigger>.self, forKey: .enabledTriggers)
+            self.isEnabled = try c.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
+            self.httpMethod = try c.decodeIfPresent(HTTPMethod.self, forKey: .httpMethod) ?? .post
+            self.useCustomBody = try c.decodeIfPresent(Bool.self, forKey: .useCustomBody) ?? false
+            self.contentType = try c.decodeIfPresent(String.self, forKey: .contentType)
+                ?? "application/json; charset=utf-8"
+            self.bodyTemplate = try c.decodeIfPresent(String.self, forKey: .bodyTemplate) ?? ""
+        }
     }
 
     private(set) var endpoints: [Endpoint] {
@@ -83,26 +130,66 @@ final class WebhookStore {
         restore()
         if endpoints.isEmpty {
             // Seed with one canonical Slack target so the settings page has content.
-            endpoints = [
-                Endpoint(id: UUID(),
+            let slackId = UUID()
+            let feishuId = UUID()
+            let seeded = [
+                Endpoint(id: slackId,
                          name: "#fin-alerts",
                          url: "https://hooks.slack.com/services/T00/B00/…",
                          platform: .slack,
                          enabledTriggers: [.budgetOverrun, .largeSpend]),
-                Endpoint(id: UUID(),
+                Endpoint(id: feishuId,
                          name: "飞书 · 家庭群",
                          url: "https://open.feishu.cn/open-apis/bot/v2/hook/…",
                          platform: .feishu,
                          enabledTriggers: [.subscriptionRenewal]),
             ]
+            for ep in seeded { writeURLToKeychain(ep) }
+            endpoints = seeded
         }
     }
 
-    func add(_ endpoint: Endpoint) { endpoints.append(endpoint) }
-    func delete(id: UUID) { endpoints.removeAll { $0.id == id } }
+    /// Read the current URL for an endpoint id (Keychain-backed).
+    /// Prefer this over `endpoint.url` in services / background tasks where the
+    /// in-memory mirror may be stale.
+    func url(for id: UUID) -> String? {
+        KeychainService.get(keychainKey(for: id))
+    }
+
+    func add(_ endpoint: Endpoint) {
+        writeURLToKeychain(endpoint)
+        endpoints.append(endpoint)
+    }
+
+    func delete(id: UUID) {
+        KeychainService.delete(keychainKey(for: id))
+        endpoints.removeAll { $0.id == id }
+    }
+
     func update(_ endpoint: Endpoint) {
+        writeURLToKeychain(endpoint)
         if let idx = endpoints.firstIndex(where: { $0.id == endpoint.id }) {
             endpoints[idx] = endpoint
+        }
+    }
+
+    // MARK: - Keychain helpers
+
+    private func keychainKey(for id: UUID) -> String {
+        "webhook.url.\(id.uuidString)"
+    }
+
+    /// Write the endpoint's URL to Keychain. If Keychain is unavailable (device
+    /// locked on first unlock, etc.), the in-memory `endpoint.url` still holds
+    /// the value for this session — we just won't be able to restore it next
+    /// launch. That's a degraded-but-non-destructive failure mode.
+    private func writeURLToKeychain(_ endpoint: Endpoint) {
+        guard !endpoint.url.isEmpty else {
+            KeychainService.delete(keychainKey(for: endpoint.id))
+            return
+        }
+        if !KeychainService.set(endpoint.url, for: keychainKey(for: endpoint.id)) {
+            print("⚠️ Webhook [\(endpoint.name)] Keychain write failed — URL not persisted")
         }
     }
 
@@ -112,19 +199,27 @@ final class WebhookStore {
     func emit(_ trigger: Trigger, title: String, body: String) {
         for endpoint in endpoints where endpoint.isEnabled
             && endpoint.enabledTriggers.contains(trigger) {
+            // Pull the URL from Keychain at emit time (fresh read — in-memory
+            // mirror may lag if something mutated Keychain out-of-band).
+            guard let urlString = url(for: endpoint.id), !urlString.isEmpty else {
+                print("⚠️ Webhook [\(endpoint.name)] no URL in Keychain — skipping")
+                continue
+            }
             let ctx = TemplateContext(
                 trigger: trigger, title: title, body: body,
                 endpointName: endpoint.name
             )
             Task.detached(priority: .utility) {
-                await Self.send(endpoint: endpoint, context: ctx)
+                await Self.send(endpoint: endpoint, urlString: urlString, context: ctx)
             }
         }
     }
 
-    private static func send(endpoint: Endpoint, context: TemplateContext) async {
-        guard let url = URL(string: endpoint.url) else {
-            print("⚠️ Webhook [\(endpoint.name)] bad URL: \(endpoint.url)")
+    private static func send(endpoint: Endpoint,
+                             urlString: String,
+                             context: TemplateContext) async {
+        guard let url = URL(string: urlString) else {
+            print("⚠️ Webhook [\(endpoint.name)] bad URL: \(urlString)")
             return
         }
         var req = URLRequest(url: url)
@@ -189,10 +284,71 @@ final class WebhookStore {
             UserDefaults.standard.set(data, forKey: storageKey)
         }
     }
+
+    /// Legacy shape (pre-Keychain): `url` was encoded inline in UserDefaults.
+    /// Kept only for one-shot migration of existing installs.
+    private struct LegacyEndpoint: Decodable {
+        let id: UUID
+        let name: String
+        let url: String?
+        let platform: Endpoint.Platform
+        let enabledTriggers: Set<Trigger>
+        let isEnabled: Bool?
+        let httpMethod: HTTPMethod?
+        let useCustomBody: Bool?
+        let contentType: String?
+        let bodyTemplate: String?
+    }
+
     private func restore() {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let decoded = try? JSONDecoder().decode([Endpoint].self, from: data) else { return }
-        endpoints = decoded
+        guard let data = UserDefaults.standard.data(forKey: storageKey) else { return }
+
+        // Decode once via the current struct (URL stripped from Codable) to get
+        // metadata. Decode a second view as LegacyEndpoint to pick up any inline
+        // URLs still sitting in UserDefaults from pre-Keychain builds.
+        guard let decoded = try? JSONDecoder().decode([Endpoint].self, from: data) else { return }
+        let legacy = (try? JSONDecoder().decode([LegacyEndpoint].self, from: data)) ?? []
+        let legacyByID = Dictionary(uniqueKeysWithValues: legacy.map { ($0.id, $0) })
+
+        var anyMigrationFailed = false
+        var hydrated: [Endpoint] = []
+        hydrated.reserveCapacity(decoded.count)
+
+        for var endpoint in decoded {
+            // why: one-way migration from plain-text UserDefaults to Keychain.
+            // If an inline URL is still in the legacy blob AND Keychain doesn't
+            // yet have a copy, move it. Subsequent persist() strips the URL
+            // from UD because the current Endpoint.CodingKeys excludes `url`.
+            if let legacyURL = legacyByID[endpoint.id]?.url,
+               !legacyURL.isEmpty,
+               !KeychainService.has(keychainKey(for: endpoint.id)) {
+                if KeychainService.set(legacyURL, for: keychainKey(for: endpoint.id)) {
+                    endpoint.url = legacyURL
+                } else {
+                    // Keychain write failed (device locked / first-unlock race).
+                    // Keep the URL in memory so this session still works, and
+                    // bail out of persisting — we want the legacy blob to stay
+                    // in UD so next launch can retry the migration.
+                    endpoint.url = legacyURL
+                    anyMigrationFailed = true
+                    print("⚠️ Webhook [\(endpoint.name)] Keychain migration failed, will retry next launch")
+                }
+            } else {
+                endpoint.url = KeychainService.get(keychainKey(for: endpoint.id)) ?? ""
+            }
+            hydrated.append(endpoint)
+        }
+
+        if anyMigrationFailed {
+            // Don't trigger didSet → persist(), which would wipe the legacy
+            // URLs we still need for the retry. Mutate the underlying storage
+            // directly via a tiny dance: assign, then restore UD.
+            let snapshot = data
+            endpoints = hydrated
+            UserDefaults.standard.set(snapshot, forKey: storageKey)
+        } else {
+            endpoints = hydrated
+        }
     }
 }
 
