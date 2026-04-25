@@ -159,6 +159,8 @@ struct HomeView: View {
                             .foregroundStyle(AppColors.ink3)
                             .padding(.top, 6)
                     }
+
+                    monthOverMonthLine
                 }
 
                 Spacer(minLength: 8)
@@ -516,6 +518,37 @@ struct HomeView: View {
         return "\(direction) \(String(format: "%.1f%%", abs(pct)))"
     }
 
+    private var monthOverMonthPercent: Double? {
+        guard store.lastMonthExpenseCents > 0 else { return nil }
+        return (Double(store.thisMonthExpenseCents) - Double(store.lastMonthExpenseCents))
+            / Double(store.lastMonthExpenseCents) * 100
+    }
+
+    private var previousMonthLabel: String {
+        let cal = Calendar(identifier: .gregorian)
+        let prev = cal.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        return Self.prevMonthFmt.string(from: prev)
+    }
+
+    @ViewBuilder
+    private var monthOverMonthLine: some View {
+        if store.lastMonthExpenseCents == 0 {
+            if store.thisMonthExpenseCents > 0 {
+                Text("本月首次支出")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(AppColors.ink3)
+            }
+        } else if let pct = monthOverMonthPercent {
+            let rising = pct > 0
+            let color: Color = rising ? AppColors.expenseRed : AppColors.incomeGreen
+            let sign = rising ? "+" : "-"
+            let emoji: String = abs(pct) > 50 ? (rising ? "📈 " : "📉 ") : ""
+            Text("\(emoji)vs. \(previousMonthLabel):\(sign)\(String(format: "%.0f%%", abs(pct)))")
+                .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                .foregroundStyle(color)
+        }
+    }
+
     private func categoryShare(_ cents: Int) -> String {
         guard store.thisMonthExpenseCents > 0 else { return "0%" }
         let ratio = Double(cents) / Double(store.thisMonthExpenseCents)
@@ -539,6 +572,13 @@ struct HomeView: View {
         let f = DateFormatter()
         f.locale = Locale(identifier: "zh_CN")
         f.dateFormat = "M 月总览"
+        return f
+    }()
+
+    private static let prevMonthFmt: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale.autoupdatingCurrent
+        f.setLocalizedDateFormatFromTemplate("MMM")
         return f
     }()
 
