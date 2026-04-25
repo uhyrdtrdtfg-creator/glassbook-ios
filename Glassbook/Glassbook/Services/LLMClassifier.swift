@@ -134,6 +134,60 @@ enum LLMClassifier {
         return out
     }
 
+    // MARK: - Item 7 · 简化商户名
+
+    /// Ask the selected BYO LLM to simplify an OCR-bloated merchant name
+    /// (e.g. "深圳市兜点实业有限责任公司" → "兜点便利店"). Returns nil if:
+    /// no engine configured / network fails / model misbehaves — caller
+    /// silently keeps the original string.
+    ///
+    /// Kept on this enum (not LLMClient) because the prompt is tuned and
+    /// post-processing (quote/whitespace strip) lives here.
+    static func simplifyMerchantName(raw: String) async -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let engine = AIEngineStore.shared.selected
+        if engine == .appleIntelligence { return nil }
+
+        // 用三反引号包裹避免模型把商户名里的冒号/引号当成指令边界。
+        let userPrompt = """
+        把下面这个商户名简化成用户日常口头叫的版本,去掉"xxx有限公司"、"xx市xx区"、\
+        "xx集团xx店"之类的冗余。**只输出简化后的名字**,不要加解释、不要加引号、\
+        不要加标点。如果已经很简洁就原样返回。
+
+        输入:
+        ```
+        \(trimmed)
+        ```
+        """
+
+        let reply: String
+        do {
+            reply = try await LLMClient.chat(
+                engine: engine,
+                messages: [.init(role: "user", content: userPrompt)]
+            )
+        } catch {
+            return nil
+        }
+
+        // Strip whitespace, quotes, markdown fences, trailing period. Model
+        // sometimes ignores the "no explanation" rule — take only the first line.
+        var cleaned = reply.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let firstLine = cleaned.split(whereSeparator: { $0.isNewline }).first {
+            cleaned = String(firstLine)
+        }
+        cleaned = cleaned
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: CharacterSet(charactersIn: " \t\"'“”‘’`·「」【】"))
+
+        guard !cleaned.isEmpty, cleaned != trimmed else { return nil }
+        // 防御:模型可能返回一整段解释 (> 30 字),放弃。
+        guard cleaned.count <= 30 else { return nil }
+        return cleaned
+    }
+
     /// Strip common wrappers from LLM output. Handles:
     ///   ```json\n[...]\n```   ```\n[...]\n```   "任何前缀文字 [...] 后缀"
     /// Falls back to the raw string if nothing matches — JSONDecoder will

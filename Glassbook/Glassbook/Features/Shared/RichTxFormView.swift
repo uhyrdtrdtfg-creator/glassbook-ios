@@ -42,6 +42,7 @@ struct RichTxFormView: View {
     @State private var cursorBlink = true
     @State private var hasEditedValues = false
     @State private var showDiscardDialog = false
+    @State private var isSimplifying = false
 
     init(title: String,
          saveLabel: String = "保存",
@@ -299,6 +300,9 @@ struct RichTxFormView: View {
                     .foregroundStyle(AppColors.ink)
                     .autocorrectionDisabled()
                     .onChange(of: values.merchant) { _, _ in hasEditedValues = true }
+                if llmAvailable, !values.merchant.isEmpty {
+                    simplifyButton
+                }
                 if !values.merchant.isEmpty {
                     Button { values.merchant = ""; hasEditedValues = true } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -325,6 +329,53 @@ struct RichTxFormView: View {
             .padding(.horizontal, 16).padding(.vertical, 12)
         }
         .glassCard(radius: 14)
+    }
+
+    // MARK: - AI simplify merchant name (Item 7)
+
+    /// Only show the button if the current AI engine can actually serve
+    /// the call. Apple Intelligence has no public text API so we hide there
+    /// too — same rule as LLMClassifier.
+    private var llmAvailable: Bool {
+        let store = AIEngineStore.shared
+        let engine = store.selected
+        if engine == .appleIntelligence { return false }
+        if engine == .phoneclaw { return true }  // 本地不需要 API key
+        if let key = store.apiKey(for: engine), !key.isEmpty { return true }
+        return false
+    }
+
+    private var simplifyButton: some View {
+        Button {
+            let raw = values.merchant
+            isSimplifying = true
+            Task {
+                let simplified = await LLMClassifier.simplifyMerchantName(raw: raw)
+                await MainActor.run {
+                    if let s = simplified {
+                        values.merchant = s
+                        hasEditedValues = true
+                    }
+                    isSimplifying = false
+                }
+            }
+        } label: {
+            HStack(spacing: 3) {
+                if isSimplifying {
+                    ProgressView().controlSize(.mini).tint(AppColors.ink2)
+                } else {
+                    Image(systemName: "sparkles").font(.system(size: 9))
+                }
+                Text(isSimplifying ? "简化中" : "AI 简化")
+                    .font(.system(size: 10, weight: .medium))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(Capsule().fill(LinearGradient.brand()))
+        }
+        .buttonStyle(.plain)
+        .disabled(isSimplifying)
+        .opacity(isSimplifying ? 0.6 : 1)
     }
 
     // MARK: - Date (edit-only)
