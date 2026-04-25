@@ -87,7 +87,8 @@ struct GlassbookShortcuts: AppShortcutsProvider {
             phrases: [
                 "用 \(.applicationName) 记一笔",
                 "用 \(.applicationName) 识别截屏",
-                "Glassbook 识别这张图",
+                // 每条 phrase 必含 ${applicationName} (Xcode 16 ExtractAppIntentsMetadata 强校验)
+                "\(.applicationName) 识别这张图",
             ],
             shortTitle: "识别截屏",
             systemImageName: "doc.text.viewfinder"
