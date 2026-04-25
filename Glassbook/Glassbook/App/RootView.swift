@@ -7,6 +7,9 @@ struct RootView: View {
     @State private var selectedTab: TabKey = .home
     @State private var showingAddSheet = false
     @State private var showingSmartImport = false
+    // why: read the onboarding flag here so the sheet auto-presents on fresh installs.
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
+    @State private var showingOnboarding = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -40,6 +43,12 @@ struct RootView: View {
         }
         .fullScreenCover(isPresented: $showingSmartImport) {
             SmartImportFlow(isPresented: $showingSmartImport)
+        }
+        .sheet(isPresented: $showingOnboarding) {
+            OnboardingFlow(isPresented: $showingOnboarding)
+        }
+        .onAppear {
+            if !hasCompletedOnboarding { showingOnboarding = true }
         }
     }
 }
