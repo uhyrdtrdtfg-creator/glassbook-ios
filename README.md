@@ -155,6 +155,7 @@ git push origin v1.3.0
 - [glassbook-advanced-features.html](glassbook-advanced-features.html) · Local-First Synthesis v2
 - [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md) · 自动推送更新三层机制
 - [docs/RELEASE.md](docs/RELEASE.md) · 发布手册(证书 / TestFlight / 审核)
+- [docs/OPTIMIZATION_PLAN.md](docs/OPTIMIZATION_PLAN.md) · 优化活清单(排好优先级 · 20 项 · ~28.5 小时)
 
 ## License
 
