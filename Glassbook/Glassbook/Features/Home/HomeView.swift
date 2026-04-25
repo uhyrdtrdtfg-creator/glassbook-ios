@@ -30,10 +30,12 @@ struct HomeView: View {
             VStack(spacing: 16) {
                 greeting
                 heroCard
-                quickActions
-                spotlightSection
-                recentSectionHeader
-                recentList
+                // why iPad two-column
+                if hSizeClass == .regular {
+                    regularBody
+                } else {
+                    compactBody
+                }
                 Spacer().frame(height: 110)
             }
             .padding(.horizontal, 18)
@@ -460,6 +462,34 @@ struct HomeView: View {
         }
         .padding(.horizontal, 4)
         .padding(.top, 2)
+    }
+
+    @ViewBuilder
+    private var compactBody: some View {
+        quickActions
+        spotlightSection
+        recentSectionHeader
+        recentList
+    }
+
+    @ViewBuilder
+    private var regularBody: some View {
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(), spacing: 16, alignment: .top),
+                GridItem(.flexible(), spacing: 16, alignment: .top)
+            ],
+            spacing: 16
+        ) {
+            VStack(spacing: 16) {
+                recentSectionHeader
+                recentList
+            }
+            VStack(spacing: 16) {
+                quickActions
+                spotlightSection
+            }
+        }
     }
 
     private var recentList: some View {
