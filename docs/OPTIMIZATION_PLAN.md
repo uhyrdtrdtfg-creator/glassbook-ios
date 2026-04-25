@@ -133,12 +133,14 @@
   - [ba7d3f5](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/ba7d3f5) item 18 service 层完整 DI · 新 `App/AppServices.swift` @Observable 容器 · 4 个 service 改 final class + init 注入 · 4 个 caller 走 `services.X.method()` · Test 跟进 + system prompt 也过 PIIRedactor (item 12 余项)
   - [bbb2d79](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/bbb2d79) item 15 NavigationSplitView · iPad / Mac 走侧栏复用 TabKey enum + AccountsView AddAccountSheet `.large` detent
 
-**仍未做** (没真用户反馈不动)
-- HomeView iPad 双栏 hero+spotlight side-by-side · 等数据多了再上
-- Snapshot 测覆盖更多页面 (ProfileView / AddTransaction sheet)
+**批 7 · 余项也清完**
+- [ef76cef](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/ef76cef) HomeView iPad 双栏 · LazyVGrid 2 列 · compact 字节不变 (snapshot 零 diff)
+- [a603df9](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/a603df9) snapshot 加 5 张基线 (Profile / AddTx / Onboarding 三步) · ProfileView 也走 init(now:)
+
+**全部已落**。要再扩展只能从用户反馈倒推新条目。
 
 ## 📊 实际花费 vs 估时
-- 总估 28.5h · 6 批并行 agent 每批 ~5-15 min · 累计 wall-clock < 2h
+- 总估 28.5h · 7 批并行 agent · 累计 wall-clock < 2.5h
 - 主线程开销主要在 review / commit / plan doc
 
 ## 🔄 活清单怎么维护
