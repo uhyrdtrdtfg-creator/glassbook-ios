@@ -22,12 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # XcodeGen on Xcode 16+ emits objectVersion=77, which Xcode 15.x can't
-      # read. Bumping CI to Xcode 16 keeps local + CI in sync without pinning
-      # the project format.
+      # macos-15 自带 Xcode 16 + iOS 18 模拟器 runtime · 用 setup-xcode 取
+      # 单独的 16.0 反而拿到不带 simulator 的精简版,会报 "iOS 18.0 is not
+      # installed"。直接走 latest-stable 让 action 选已装 runtime 的版本。
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.0'
+          xcode-version: latest-stable
 
       - name: Install xcodegen
         run: brew install xcodegen
