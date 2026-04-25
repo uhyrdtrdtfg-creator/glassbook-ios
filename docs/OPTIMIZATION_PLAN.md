@@ -17,31 +17,13 @@
 
 ---
 
-### 2. ⚪ 批量删除 / 多选
-**现状**: [BillsView](../Glassbook/Glassbook/Features/Bills/BillsView.swift) 只能一笔一笔删。10 笔重复 = 10 次长按 · 一只手操作很难。
-
-**做法**:
-- Bills nav 加"编辑"按钮进 `EditMode`
-- TransactionRow 左侧出 checkbox
-- 底部浮一条"删除选中 (N)"
-- AppStore 加 `deleteMany(ids: [UUID])` 批量走 SwiftData delete
-
-**估时**: 1 小时
-**文件**: `Features/Bills/BillsView.swift`, `Store/AppStore.swift`
+### 2. 🟢 批量删除 / 多选
+落在 [b08d0bf](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/b08d0bf) (与 3 共体). 工具栏"编辑"翻 EditMode, 行前 checkbox, 底部浮出 `.borderedProminent` + `expenseRed` 的 "删除选中 (N)"; 编辑中隐搜索 / summary 卡腾出纵向空间。走 `deleteMany(ids:)` 共享撤销管道。
 
 ---
 
-### 3. ⚪ 删除后撤销 (Toast)
-**现状**: `store.delete(id)` 立即生效。手抖删错只能重录入。
-
-**做法**:
-- AppStore 加 `recentlyDeleted: Transaction?` + 5 秒 timer
-- 删除时不立即 SwiftData delete, 先从 in-memory 移除
-- 弹 `Toast` · "已删除 · 撤销" (SwiftUI 自定义 overlay 或 iOS 17+ `.toast`)
-- 5 秒后 timer 到, 真正 commit delete; 点"撤销"则 revert
-
-**估时**: 1-1.5 小时
-**文件**: `Store/AppStore.swift`, 新 `Components/Toast.swift`
+### 3. 🟢 删除后撤销 (Toast)
+落在 [b08d0bf](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/b08d0bf). `PendingDeletion { ids, snapshot }` + `Task.sleep(5s)` timer; `undoDelete` 恢复内存快照并取消 task; scenePhase 进后台立即 `commitPendingDeletionNow`。新增 `Features/Components/Toast.swift` · `UndoToast` 组件, `.ultraThinMaterial` + "撤销" 胶囊按钮, 父视图控制显隐。
 
 ---
 
@@ -57,30 +39,13 @@
 
 ## 🟡 第二梯队 · 差异化功能 · 每个 1-3 小时
 
-### 6. ⚪ AI 自动分类预览
-**现状**: SmartImportConfirmScreen 的"AI 自动分类"按钮点了直接覆盖。看不到模型把哪笔从 A 改到了 B。
-
-**做法**:
-- `LLMClassifier.categorize` 返回值已经是 `[UUID: Category.Slug]`
-- 加 `PreviewDiffSheet` 显示 "钱大妈 餐饮 → 其他?" 列表
-- 每行 checkbox 默认勾选 · 点"应用勾选的 N 项"才覆盖
-
-**估时**: 1.5 小时
-**文件**: `Features/SmartImport/SmartImportFlow.swift`, `Services/LLMClassifier.swift`
+### 6. 🟢 AI 自动分类预览
+落在 [ad74c02](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/ad74c02) (与 7 共体). `runAIClassify` 不再直接覆盖, 构建 `AIClassifyDiffItem` 过滤掉 no-op 行, 打开 `AIClassifyDiffSheet` (inline, AuroraBackground + glassCard 列表) 让用户逐行确认; footer "应用勾选的 N 项"。
 
 ---
 
-### 7. ⚪ AI 修正商户名
-**现状**: OCR 出来的"深圳市兜点实业有限责任公司"看着就想改成"兜点便利店"。现在只能手动编辑。
-
-**做法**:
-- EditPendingRowSheet / EditTransactionSheet 商户名旁加 "✨ AI 简化" 按钮
-- 调当前 BYO 引擎 · prompt: "把这个商户名简化成用户日常叫的版本, 直接输出简化后的名字不要解释"
-- 把结果填入 merchant 字段 · 用户可以继续改
-- 失败 / 未配 LLM 降级为不显示按钮
-
-**估时**: 1 小时
-**文件**: `Services/LLMClassifier.swift` 加 `simplifyMerchantName`, UI 2 处
+### 7. 🟢 AI 修正商户名
+落在 [ad74c02](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/ad74c02). `LLMClassifier.simplifyMerchantName(raw:)` 带结果清洗 (去引号 / 单行 / 长度上限 30); "✨ AI 简化" 按钮放进 `RichTxFormView.merchantNoteCard` 一次搞定两个 sheet; `appleIntelligence` / 未配 key 自动隐藏。
 
 ---
 
@@ -89,16 +54,8 @@
 
 ---
 
-### 9. ⚪ 首次启动引导
-**现状**: 新装直接进首页, 用户不知道有 AI 分类 / 截屏自动识别 / 家庭共享。
-
-**做法**:
-- 首次启动检测 (UserDefaults flag)
-- 3 步 sheet: `AIEnginePickerStep` (可跳过) → `ScreenshotAutomationStep` (教 Shortcut) → `FamilyStep` (起名, 可跳过)
-- 完成后写 flag, 以后不再弹
-
-**估时**: 2-3 小时
-**文件**: 新 `Features/Onboarding/` 目录
+### 9. 🟢 首次启动引导
+落在 [4ab1de3](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/4ab1de3). `@AppStorage("hasCompletedOnboarding")`, 从 `RootView` 挂 `.sheet` + `.interactiveDismissDisabled()`。三步: AIEnginePicker (teaser → 我 → AI 引擎) / ScreenshotAutomation (Shortcut 名 "Glassbook 识别截屏") / Family (写真实 `store.familyGroupName`, 与 EditProfileSheet 共用存储)。每步可跳过, 3 点进度条。
 
 ---
 
