@@ -7,6 +7,12 @@ struct FamilyBookView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var showAddMember = false
+    @State private var sharing = FamilySharingService.shared
+    @State private var showLeaveConfirm = false
+    @State private var showDissolveConfirm = false
+    @State private var isWorking = false
+    @State private var toastMessage: String?
+    @State private var showErrorAlert = false
 
     var body: some View {
         ZStack {
@@ -19,17 +25,56 @@ struct FamilyBookView: View {
                     familyHero
                     kidsSection
                     privacyExplainer
+                    dangerZone
                     Spacer().frame(height: 40)
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 8)
             }
             .scrollIndicators(.hidden)
+            if let toastMessage {
+                VStack {
+                    Spacer()
+                    Text(toastMessage)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 18).padding(.vertical, 12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(AppColors.ink.opacity(0.92)))
+                        .padding(.bottom, 40)
+                }
+                .transition(.opacity)
+            }
         }
         .sheet(isPresented: $showAddMember) {
             AddFamilyMemberSheet().environment(store)
                 .presentationDetents([.large])
         }
+        .confirmationDialog(
+            "退出此家庭账本?",
+            isPresented: $showLeaveConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("退出", role: .destructive) { Task { await performLeave() } }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("退出后你的设备上不再同步家庭数据, 其他成员看不到你, 你的已有记录保留在本地。确定退出?")
+        }
+        .confirmationDialog(
+            "解散家庭账本?",
+            isPresented: $showDissolveConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("解散", role: .destructive) { Task { await performDissolve() } }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("解散后所有成员将失去访问, 云端共享数据全部删除, 此操作不可撤销。")
+        }
+        .alert("操作失败", isPresented: $showErrorAlert) {
+            Button("知道了", role: .cancel) { sharing.lastError = nil }
+        } message: {
+            Text(sharing.lastError ?? "请稍后重试")
+        }
+        .task { await sharing.refreshOwnership() }
     }
 
     private var addMemberButton: some View {
@@ -266,6 +311,104 @@ struct FamilyBookView: View {
         let y = cents / 100
         let fmt = NumberFormatter(); fmt.numberStyle = .decimal
         return fmt.string(from: NSNumber(value: y)) ?? "\(y)"
+    }
+
+    // MARK: - Danger zone (leave / dissolve)
+
+    @ViewBuilder
+    private var dangerZone: some View {
+        // why: hide both actions when ownership is unknown or no share exists —
+        // showing destructive buttons for state the user can't actually affect is worse than nothing.
+        if sharing.ownership == .participant || sharing.ownership == .owner {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("危险操作").eyebrowStyle()
+                if sharing.ownership == .participant {
+                    dangerButton(
+                        icon: "rectangle.portrait.and.arrow.right",
+                        title: "退出此家庭账本",
+                        subtitle: "从云端共享中移除本设备"
+                    ) { showLeaveConfirm = true }
+                }
+                if sharing.ownership == .owner {
+                    dangerButton(
+                        icon: "trash",
+                        title: "解散家庭账本",
+                        subtitle: "删除全部云端共享数据 · 不可撤销"
+                    ) { showDissolveConfirm = true }
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassCard(radius: 14)
+        }
+    }
+
+    private func dangerButton(
+        icon: String,
+        title: String,
+        subtitle: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon).font(.system(size: 14))
+                    .foregroundStyle(Color.red)
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(Color.red.opacity(0.12)))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.red)
+                    Text(subtitle).font(.system(size: 10))
+                        .foregroundStyle(AppColors.ink3)
+                }
+                Spacer()
+                if isWorking {
+                    ProgressView().scaleEffect(0.7)
+                } else {
+                    Image(systemName: "chevron.right").font(.system(size: 11))
+                        .foregroundStyle(AppColors.ink3)
+                }
+            }
+            .padding(.vertical, 10).padding(.horizontal, 12)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.55)))
+        }
+        .buttonStyle(.plain)
+        .disabled(isWorking)
+        .opacity(isWorking ? 0.5 : 1)
+    }
+
+    @MainActor
+    private func performLeave() async {
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            try await sharing.leaveShare()
+            showToast("已退出家庭账本")
+        } catch {
+            if sharing.lastError == nil { sharing.lastError = error.localizedDescription }
+            showErrorAlert = true
+        }
+    }
+
+    @MainActor
+    private func performDissolve() async {
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            try await sharing.dissolveShare()
+            showToast("家庭账本已解散")
+        } catch {
+            if sharing.lastError == nil { sharing.lastError = error.localizedDescription }
+            showErrorAlert = true
+        }
+    }
+
+    private func showToast(_ msg: String) {
+        withAnimation(.easeInOut(duration: 0.2)) { toastMessage = msg }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            withAnimation(.easeInOut(duration: 0.3)) { toastMessage = nil }
+        }
     }
 }
 
