@@ -22,7 +22,33 @@ final class CurrencyService {
     )
 
     private let defaultsKey = "CurrencyService.snapshot"
-    private init() { restore() }
+    // why 24h TTL: resident apps otherwise never re-fetch, and a day's worth of
+    // FX drift on HKD/USD/EUR already swings user totals perceptibly.
+    private let ttl: TimeInterval = 24 * 3600
+    private let lastFetchedKey = "currency.lastFetchedAt"
+
+    private var lastFetchedAt: Double {
+        get { UserDefaults.standard.double(forKey: lastFetchedKey) }
+        set { UserDefaults.standard.set(newValue, forKey: lastFetchedKey) }
+    }
+
+    /// `true` when rates have never been fetched or the last fetch is older than `ttl`.
+    var isStale: Bool {
+        Date.now.timeIntervalSince1970 - lastFetchedAt > ttl
+    }
+
+    private init() {
+        restore()
+        // Cold-start refresh path — fire-and-forget so it never blocks UI.
+        Task { await refreshIfStale() }
+    }
+
+    /// Refresh only if the cached rates are older than the TTL. Safe to call
+    /// from scenePhase `.active` on every foreground — the guard prevents spam.
+    func refreshIfStale() async {
+        guard isStale else { return }
+        await refresh()
+    }
 
     /// Convert any foreign amount to CNY cents, applying current rate.
     func convertToCNY(amountCents: Int, from currency: Currency) -> Int {
@@ -62,6 +88,9 @@ final class CurrencyService {
                 var merged = snapshot.rates
                 for (k, v) in inverted { merged[k] = v }
                 snapshot = Snapshot(base: .cny, rates: merged, fetchedAt: .now)
+                // Only stamp TTL on *success* — a failed fetch must not reset the clock,
+                // otherwise a flaky network could silently freeze us on stale rates for 24h.
+                lastFetchedAt = Date.now.timeIntervalSince1970
                 persist()
                 print("💱 CurrencyService · refreshed \(inverted.count) rates from exchangerate-api.com")
             }

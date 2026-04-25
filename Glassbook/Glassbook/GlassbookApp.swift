@@ -49,6 +49,7 @@ struct GlassbookApp: App {
                     // App Group queue while we were backgrounded so "最近交易"
                     // shows the new entry the moment user returns.
                     store.drainPendingImports()
+                    Task { await CurrencyService.shared.refreshIfStale() }
                 default: break
                 }
             }
