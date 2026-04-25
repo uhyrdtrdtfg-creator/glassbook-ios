@@ -4,7 +4,7 @@ import SwiftUI
 struct BillsView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.horizontalSizeClass) private var hSizeClass
-    @State private var month: Date = Date()
+    @State private var month: Date
     @State private var filterCategory: Category.Slug? = nil
     @State private var showFilter = false
     @State private var editingTxID: UUID?
@@ -12,6 +12,14 @@ struct BillsView: View {
     @State private var isEditing: Bool = false
     @State private var selectedIDs: Set<UUID> = []
     @Environment(\.scenePhase) private var scenePhase
+
+    /// Time source — defaulted so existing call sites compile unchanged; tests pin it for determinism.
+    private let now: () -> Date
+
+    init(now: @escaping () -> Date = { .now }) {
+        self.now = now
+        _month = State(initialValue: now())
+    }
 
     private struct IDWrap: Identifiable { let id: UUID }
 

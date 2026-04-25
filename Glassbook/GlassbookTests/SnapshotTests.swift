@@ -18,18 +18,22 @@ import SnapshotTesting
 /// stays pixel-identical (within tolerance). Drift → test fails with a
 /// side-by-side diff.
 ///
-/// Dynamic content caveat: HomeView / BillsView pull from `AppStore()`'s
-/// in-memory seed (SampleData) which is deterministic, BUT their greeting
-/// includes "今天是 <date>" and month filters key off `Date()`. Expect the
-/// greeting band and month headers to shift day-to-day — the baseline
-/// captures the state at record time. If CI flakes, tighten by injecting
-/// a fixed date into the views (requires production changes, deferred).
+/// Determinism: HomeView / BillsView take an injectable `now` closure so
+/// the greeting band, month badges, and "本月" filters all key off a pinned
+/// date. SmartImportEntryScreen has no date-dependent rendering, so it
+/// doesn't need a clock.
 final class SnapshotTests: XCTestCase {
 
     /// Toggle to `true`, run once, revert to `false`, commit the PNGs.
     /// Leaving it at `false` in source means a rogue `git checkout .`
     /// doesn't silently switch baselines to a re-record.
     private let recordMode = false
+
+    /// Pinned clock for the views under test. 2026-04-15T12:00:00Z —
+    /// mid-month so "本月" filters surface real seeded data, and a Wednesday
+    /// so the weekday string is stable. Far enough from any given test-run
+    /// "today" to surface accidental `Date()` fall-through.
+    private let frozenNow = Date(timeIntervalSince1970: 1_776_254_400)
 
     override func setUp() {
         super.setUp()
@@ -42,9 +46,10 @@ final class SnapshotTests: XCTestCase {
     @MainActor
     func testHomeView_default() {
         let store = AppStore()
+        let pinned = frozenNow
         let view = ZStack {
             AuroraBackground(palette: .home)
-            HomeView().environment(store)
+            HomeView(now: { pinned }).environment(store)
         }
         .frame(width: 390, height: 844)
         assertSnapshot(
@@ -59,9 +64,10 @@ final class SnapshotTests: XCTestCase {
     @MainActor
     func testBillsView_default() {
         let store = AppStore()
+        let pinned = frozenNow
         let view = ZStack {
             AuroraBackground(palette: .bills)
-            BillsView().environment(store)
+            BillsView(now: { pinned }).environment(store)
         }
         .frame(width: 390, height: 844)
         assertSnapshot(

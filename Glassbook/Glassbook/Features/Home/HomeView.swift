@@ -8,6 +8,13 @@ struct HomeView: View {
     @State private var showSmartImport = false
     @State private var pendingEdit: PendingReceipt?
 
+    /// Time source — defaulted so existing call sites compile unchanged; tests pin it for determinism.
+    private let now: () -> Date
+
+    init(now: @escaping () -> Date = { .now }) {
+        self.now = now
+    }
+
     private let twoColumns = [
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10)
@@ -65,7 +72,7 @@ struct HomeView: View {
     private var greeting: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(Self.greetingText())
+                Text(Self.greetingText(now: now()))
                     .font(.system(size: 13))
                     .foregroundStyle(AppColors.ink2)
 
@@ -76,7 +83,7 @@ struct HomeView: View {
                     monthBadge
                 }
 
-                Text("今天是 \(Self.dateFmt.string(from: Date()))")
+                Text("今天是 \(Self.dateFmt.string(from: now()))")
                     .font(.system(size: 11))
                     .foregroundStyle(AppColors.ink3)
             }
@@ -89,7 +96,7 @@ struct HomeView: View {
     }
 
     private var monthBadge: some View {
-        Text(Self.monthFmt.string(from: Date()))
+        Text(Self.monthFmt.string(from: now()))
             .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(AppColors.ink2)
             .padding(.horizontal, 10)
@@ -457,7 +464,7 @@ struct HomeView: View {
 
     private var recentList: some View {
         VStack(spacing: 0) {
-            let recent = Array(store.transactionsInMonth(Date()).prefix(4))
+            let recent = Array(store.transactionsInMonth(now()).prefix(4))
             ForEach(Array(recent.enumerated()), id: \.element.id) { idx, tx in
                 if idx > 0 {
                     Divider()
@@ -490,7 +497,7 @@ struct HomeView: View {
     // MARK: - Derived
 
     private var topCategories: [(Category, Int)] {
-        Array(store.expensesByCategory(in: Date()).prefix(4))
+        Array(store.expensesByCategory(in: now()).prefix(4))
     }
 
     private var budgetProgress: CGFloat {
@@ -530,7 +537,7 @@ struct HomeView: View {
 
     private var previousMonthLabel: String {
         let cal = Calendar(identifier: .gregorian)
-        let prev = cal.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        let prev = cal.date(byAdding: .month, value: -1, to: now()) ?? now()
         return Self.prevMonthFmt.string(from: prev)
     }
 
