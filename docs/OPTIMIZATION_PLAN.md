@@ -66,13 +66,8 @@
 
 ## 🔵 第三梯队 · 数据 / 隐私 / 品质
 
-### 11. ⚪ CKShare 家庭操作闭环
-**现状**: 能创建家庭分享但没"退出" / "解散"入口。CloudKit 数据留在服务器。
-
-**做法**: FamilyBookView 加 "退出此家庭账本" + "重置所有共享" 两个按钮, 走 CKShare API。
-
-**估时**: 2 小时
-**文件**: `Features/Family/FamilyBookView.swift`, `Services/FamilySharingService.swift`
+### 11. 🟢 CKShare 家庭操作闭环
+落在 [40171bf](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/40171bf). Service 从 enum 升 `@Observable class` (留 .shared),加 `refreshOwnership` / `leaveShare` / `dissolveShare`;拥有者私有 DB 删 share + zone,非拥有者抛 `.permissionFailure`;`zoneNotFound` / `unknownItem` 全吞当幂等。FamilyBookView 尾部"危险操作"玻璃卡按 ownership 只显对应按钮。
 
 ---
 
@@ -86,13 +81,8 @@
 
 ---
 
-### 14. ⚪ Watch 快速记账
-**现状**: WatchQuickAddView 只是框架, Digital Crown 调金额的交互没做。
-
-**做法**: `.focusable() + .digitalCrownRotation` 绑金额, List 选分类, 保存走 AppStore。
-
-**估时**: 1.5 小时
-**文件**: `GlassbookWatch/WatchQuickAddView.swift`
+### 14. 🟢 Watch 快速记账
+落在 [2258c4c](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/2258c4c). `@FocusState` + `digitalCrownRotation(0...9999, .medium)` 绑 `¥` 整元 · 9 分类横滚条 (Watch target 进不到 Models.swift 按 Category.Slug rawValue 本地硬编) · 保存 `PendingImportQueue.enqueue`,下次 iOS 前台 `drainPendingImports` 回收为真实 Transaction。
 
 ---
 
@@ -113,13 +103,8 @@
 
 ---
 
-### 17. ⚪ Snapshot 测试
-**现状**: SmokeTests 只测 view build, CSS 样式 regress 没人发现。
-
-**做法**: 引入 `pointfreeco/swift-snapshot-testing`, 关键页面留 PNG 基线。CI 跑 diff, 改了会失败强制 review。
-
-**估时**: 3 小时
-**文件**: `Package.swift` / `project.yml` 加 package, 新 `GlassbookTests/SnapshotTests.swift`
+### 17. 🟢 Snapshot 测试
+落在 [ccb6288](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/ccb6288). project.yml 加 `packages:` + `SnapshotTesting 1.17` 挂 GlassbookTests 依赖。3 张基线 (HomeView / BillsView / SmartImportEntryScreen) 走 UIHostingController · `.image(on: .iPhone13, precision: 0.98)`;首跑自动记,二跑全绿。XCTest 而非 Swift Testing (Swift Testing 会吃掉 XCTContext PNG diff)。
 
 ---
 
@@ -138,13 +123,8 @@
 
 ---
 
-### 20. ⚪ CI 加性能基线
-**现状**: Actions 只跑功能测试, 没跑性能。
-
-**做法**: nightly job 跑批量 OCR 计时 + 内存峰值, 回归开 issue。
-
-**估时**: 2 小时
-**文件**: `.github/workflows/perf.yml`
+### 20. 🟢 CI 加性能基线
+落在 [f7f6c2a](https://github.com/uhyrdtrdtfg-creator/glassbook-ios/commit/f7f6c2a). `perf.yml` · UTC 15:00 (北京 23:00) 夜跑 PerfTests · runner / Xcode / scheme 对齐 ci.yml (`macos-14` · `Xcode_15.4` · `GlassbookCI` 避 watchOS SDK 坑)。回归 dedup Option A: `listForRepo` 找已开 `perf+regression` issue 就 comment · 没有才开 · 不刷屏。
 
 ---
 
