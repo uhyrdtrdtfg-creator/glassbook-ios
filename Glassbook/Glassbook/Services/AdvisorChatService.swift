@@ -5,6 +5,10 @@ import Observation
 /// Sends messages to the currently-selected BYO LLM endpoint. Scaffold uses
 /// deterministic local responses when no API key is configured so the UI flow
 /// still works in a simulator.
+///
+/// Item 18 · 服务层 DI — engines + client are init-injected. Tests/previews
+/// that don't supply them get a default `AIEngineStore()` + `LLMClient(...)`
+/// pair so the deterministic local-respond path works without env wiring.
 @Observable
 final class AdvisorChatService {
 
@@ -32,14 +36,31 @@ final class AdvisorChatService {
     // so lifetimes align naturally; keeping this strong also lets unit tests
     // pass a throwaway `AppStore()` without it being deallocated mid-call.
     private let store: AppStore
-    private let engineStore = AIEngineStore.shared
+    private let engines: AIEngineStore
+    private let client: LLMClient
 
-    init(store: AppStore) {
+    /// Designated init — caller (AppServices factory) supplies a shared engine
+    /// store + client so the whole LLM stack agrees on which engine to dispatch.
+    init(store: AppStore, engines: AIEngineStore, client: LLMClient) {
         self.store = store
+        self.engines = engines
+        self.client = client
         messages.append(.init(
             role: .assistant,
             content: "你好 Roger 👋 我可以回答本月预算、分类花费、订阅健康度之类的问题。试着问 **这个月我吃饭花了多少?** 或 **有哪些订阅建议取消?**"
         ))
+    }
+
+    /// Test/preview convenience: if no LLM stack is supplied, spin up a local
+    /// pair so the deterministic offline router is still exercisable. Real
+    /// app flow always goes through `AppServices.advisorChat(store)` which
+    /// shares the env-bound engine store.
+    convenience init(store: AppStore) {
+        // why: wiring a self-contained pair for tests/previews avoids touching
+        // `AIEngineStore.shared` from inside the service.
+        let engines = AIEngineStore()
+        let client = LLMClient(engines: engines)
+        self.init(store: store, engines: engines, client: client)
     }
 
     // MARK: - Entry point
@@ -57,8 +78,8 @@ final class AdvisorChatService {
         //    - Apple Intelligence: no public text API → local
         //    - PhoneClaw: runs via URL scheme bridge, NO api key needed → remote
         //    - All BYO cloud engines: require an api key → local if missing
-        let engine = engineStore.selected
-        let hasKey = engineStore.apiKey(for: engine)?.isEmpty == false
+        let engine = engines.selected
+        let hasKey = engines.apiKey(for: engine)?.isEmpty == false
         let useLocal: Bool
         switch engine {
         case .appleIntelligence:
@@ -155,24 +176,35 @@ final class AdvisorChatService {
     private func remoteRespond(to q: String, engine: AIEngineStore.Engine) async throws -> Message {
         // Build a compact system prompt with current financial snapshot so the
         // model has real numbers without needing tool calls.
-        let systemPrompt = """
-        你是 Glassbook 用户 \(store.userName) 的记账助手。以下是本月实时数据:
+        // §12 脱敏 · 用户名是从设置里来的真名,顶部分类的商户名也可能挂了用户
+        // OCR 出的 PII (送货地址 / 卡尾号),发云端前先过 PIIRedactor。
+        // system prompt 也过 PII (item 12 余项)。
+        let userName = PIIRedactor.redact(store.userName)
+        let topCategoriesLine = store.expensesByCategory(in: Date())
+            .prefix(3)
+            .map { "\(PIIRedactor.redact($0.0.name)) \(Money.yuan($0.1, showDecimals: false))" }
+            .joined(separator: ", ")
+
+        let rawSystemPrompt = """
+        你是 Glassbook 用户 \(userName) 的记账助手。以下是本月实时数据:
         • 本月总支出: \(Money.yuan(store.thisMonthExpenseCents, showDecimals: false))
         • 预算剩余: \(Money.yuan(store.budgetRemainingCents, showDecimals: false)) (已用 \(Int(store.budgetUsedPercent * 100))%)
         • 日均支出: \(Money.yuan(store.thisMonthDailyAverageCents, showDecimals: false))
         • 订阅支出: \(Money.yuan(store.monthlySubscriptionTotalCents, showDecimals: false))/月, 其中 \(store.subscriptions.filter { $0.zombieLevel != .active }.count) 项闲置 30+ 天
-        • 顶部分类: \(store.expensesByCategory(in: Date()).prefix(3).map { "\($0.0.name) \(Money.yuan($0.1, showDecimals: false))" }.joined(separator: ", "))
+        • 顶部分类: \(topCategoriesLine)
         • 较上月: \(String(format: "%.1f%%", store.monthOverMonthChangePct * 100))
 
         以中文回答,简短直接,给具体数字。不要加 emoji。
         """
+        // 二次过一遍兜底:模板和拼接结果都通过同一脱敏入口,redact 幂等所以重复无害。
+        let systemPrompt = PIIRedactor.redact(rawSystemPrompt)
 
         // §12 脱敏 · 用户可能直接问「我给 13800001111 转了 500 是什么」之类,
         // 或把 OCR 出来的收据原文粘进聊天框。本地 messages 数组仍存原文用于展示,
         // 只在发往云端那一瞬过一遍 PIIRedactor。
         let redactedQ = PIIRedactor.redact(q)
 
-        let reply = try await LLMClient.chat(
+        let reply = try await client.chat(
             engine: engine,
             messages: [
                 .init(role: "system", content: systemPrompt),

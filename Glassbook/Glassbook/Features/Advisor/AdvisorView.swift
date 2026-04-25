@@ -5,6 +5,8 @@ import SwiftUI
 struct AdvisorView: View {
     @Environment(AppStore.self) private var store
     @Environment(AIEngineStore.self) private var engineStore
+    // Item 18 服务层 · AdvisorChatService 通过容器工厂创建,内部共享 env 中的引擎栈。
+    @Environment(AppServices.self) private var services
     @Environment(\.dismiss) private var dismiss
     @State private var service: AdvisorChatService?
     @State private var input: String = ""
@@ -22,7 +24,7 @@ struct AdvisorView: View {
             }
         }
         .onAppear {
-            if service == nil { service = AdvisorChatService(store: store) }
+            if service == nil { service = services.advisorChat(store) }
         }
     }
 
@@ -256,7 +258,9 @@ private struct BounceDelayModifier: ViewModifier {
 }
 
 #Preview {
-    AdvisorView()
+    let engines = AIEngineStore()
+    return AdvisorView()
         .environment(AppStore())
-        .environment(AIEngineStore())
+        .environment(engines)
+        .environment(AppServices(engines: engines, webhooks: WebhookStore()))
 }

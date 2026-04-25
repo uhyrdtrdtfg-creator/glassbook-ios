@@ -6,7 +6,12 @@ import UIKit
 /// Different pipeline from `VisionOCRService.recognize(image:)` which handles
 /// *payment bill screenshots*. This one targets paper / digital receipts with
 /// line items + a total. All inference happens on-device.
-enum ReceiptOCRService {
+///
+/// Item 18 · 服务层 DI — `recognize(image:)` and the LLM extract path are
+/// instance methods so the engine store + LLM client can be injected. The
+/// pure-text helpers (`fakeReceipt`, `parse(lines:)`) remain static — they
+/// don't touch any LLM and the existing test suite calls them static-style.
+final class ReceiptOCRService {
 
     enum Error: Swift.Error { case invalidImage, visionFailed(String) }
 
@@ -33,18 +38,26 @@ enum ReceiptOCRService {
         }
     }
 
+    private let engines: AIEngineStore
+    private let client: LLMClient
+
+    init(engines: AIEngineStore, client: LLMClient) {
+        self.engines = engines
+        self.client = client
+    }
+
     // MARK: - Public
 
     /// 两段式:Vision 拿原始文本行 → 若配了可用的 LLM 引擎就走 LLM 结构化抽取
     /// (上下文感知, 能纠 OCR 错字, 能处理多列对齐), 否则退回原来的正则 heuristic.
     /// Language correction 关掉,因为收据里 SKU / 专有名词多,iOS 语言模型会乱纠。
-    static func recognize(image: UIImage) async throws -> Result {
+    func recognize(image: UIImage) async throws -> Result {
         let lines = try await VisionOCRService.recognize(image: image, languageCorrection: false)
 
         if let aiResult = await tryLLMExtract(lines: lines) {
             return aiResult
         }
-        return parse(lines: lines)
+        return Self.parse(lines: lines)
     }
 
     /// Scaffold-friendly synthetic receipt for simulator demos.
@@ -66,7 +79,7 @@ enum ReceiptOCRService {
         ])
     }
 
-    // MARK: - Parse
+    // MARK: - Parse (pure text — no engine needed, kept static for tests)
 
     static func parse(lines: [String]) -> Result {
         let year = Calendar.current.component(.year, from: Date())
@@ -129,9 +142,9 @@ enum ReceiptOCRService {
     ///   - the model call throws (network / timeout / cancellation)
     ///   - the JSON response can't be decoded
     /// Caller falls back to the regex `parse(lines:)` path in any of those.
-    private static func tryLLMExtract(lines: [String]) async -> Result? {
+    private func tryLLMExtract(lines: [String]) async -> Result? {
         guard !lines.isEmpty else { return nil }
-        let engine = AIEngineStore.shared.selected
+        let engine = engines.selected
 
         // Same gate as LLMClient.chat — skip engines that don't have a working
         // dispatch (AppleIntelligence has no public text API yet; BYO cloud
@@ -142,7 +155,7 @@ enum ReceiptOCRService {
         case .phoneclaw:
             break  // PhoneClawClient handles the rest
         default:
-            guard AIEngineStore.shared.apiKey(for: engine)?.isEmpty == false else {
+            guard engines.apiKey(for: engine)?.isEmpty == false else {
                 return nil
             }
         }
@@ -154,7 +167,9 @@ enum ReceiptOCRService {
             .map { "\($0.offset + 1). \(PIIRedactor.redact($0.element))" }
             .joined(separator: "\n")
 
-        let systemPrompt = """
+        // system prompt 也过 PII (item 12 余项) — 模板里只有静态指令,但年份是用户
+        // 时区驱动的;同时为未来若有人把收据片段塞进模板做兜底,统一过一遍。
+        let systemPrompt = PIIRedactor.redact("""
         你是收据结构化助手。输入是 Vision OCR 对一张中文/英文收据或账单的原始识别结果(每行一条)。
         识别结果可能有错字(例如"海底涝"应为"海底捞","夸辣锅"应为"麻辣锅"),结合上下文纠正。
         严格按下列 JSON 格式输出,不要任何解释文字,不要 markdown 代码块:
@@ -167,13 +182,13 @@ enum ReceiptOCRService {
           ]
         }
         amount_cents 规则:¥12.00 → 1200, ¥6.5 → 650。items 不要包含合计/小计/服务费/税费这些汇总行。
-        """
+        """)
 
         let userPrompt = "OCR 原文:\n\(rawJoined)"
 
         let reply: String
         do {
-            reply = try await LLMClient.chat(
+            reply = try await client.chat(
                 engine: engine,
                 messages: [
                     .init(role: "system", content: systemPrompt),
@@ -184,7 +199,7 @@ enum ReceiptOCRService {
             return nil
         }
 
-        guard let payload = decodeLLMJSON(reply) else { return nil }
+        guard let payload = Self.decodeLLMJSON(reply) else { return nil }
 
         // Assemble the public `Result` with local classifier + raw text preserved —
         // the UI still wants rawText so the user can inspect what Vision saw.
@@ -195,7 +210,7 @@ enum ReceiptOCRService {
                   let cents = item.amount_cents, cents > 0 else { return nil }
             return Result.LineItem(name: name, amountCents: cents)
         }
-        let date: Date = payload.date.flatMap(parseISODate) ?? Date()
+        let date: Date = payload.date.flatMap(Self.parseISODate) ?? Date()
         let category: Category.Slug? = merchant.flatMap {
             MerchantClassifier.shared.classify(merchant: $0)
         }

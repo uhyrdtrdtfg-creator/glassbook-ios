@@ -6,14 +6,11 @@ import Observation
 /// year-in-review, and the V2 multi-turn "问账" assistant.
 @Observable
 final class AIEngineStore {
-    /// Item 18 · 去单例迁移 (Apr 2026).
-    /// Views go through `@Environment(AIEngineStore.self)` injected at app root.
-    /// `.shared` still alive because Service-layer consumers (LLMClient,
-    /// LLMClassifier, ReceiptOCRService, AdvisorChatService) read it directly —
-    /// migrating those needs init injection across the LLM stack and is
-    /// deferred. The app root reuses `.shared` as the env value so on-disk
-    /// state (UserDefaults + Keychain) stays consistent across both paths.
-    // TODO: remove once services accept injection
+    /// Item 18 · 去单例迁移 (Apr 2026 · 服务层完成).
+    /// Views read this through `@Environment(AIEngineStore.self)`; services
+    /// (LLMClient / LLMClassifier / ReceiptOCRService / AdvisorChatService)
+    /// take it via init through `AppServices`. `.shared` 仅保留给 Watch /
+    /// Widget 等无 SwiftUI environment 的入口用,业务层不应再读它。
     static let shared = AIEngineStore()
 
     enum Engine: String, CaseIterable, Codable, Identifiable, Hashable {

@@ -4,7 +4,11 @@ import Foundation
 /// Chat-Completions wire format, which OpenAI / Claude (via OpenRouter) /
 /// Gemini / Ollama / LM Studio all accept (Claude has a native endpoint too,
 /// but its `/v1/messages` layout is handled separately below).
-enum LLMClient {
+///
+/// Item 18 · 服务层 DI — engines store injected at init instead of reaching
+/// for `AIEngineStore.shared`. View layer constructs an instance via
+/// `AppServices` and forwards it through `@Environment`.
+final class LLMClient {
 
     enum ClientError: Error, LocalizedError {
         case missingKey, badStatus(Int, String), malformed
@@ -19,11 +23,16 @@ enum LLMClient {
 
     struct Message: Codable { let role: String; let content: String }
 
+    private let engines: AIEngineStore
+
+    init(engines: AIEngineStore) {
+        self.engines = engines
+    }
+
     /// Single-shot chat call. Returns the assistant's text reply.
-    static func chat(engine: AIEngineStore.Engine,
-                     messages: [Message]) async throws -> String {
-        let store = AIEngineStore.shared
-        let cfg = store.config(for: engine)
+    func chat(engine: AIEngineStore.Engine,
+              messages: [Message]) async throws -> String {
+        let cfg = engines.config(for: engine)
 
         // PhoneClaw 本地模型,不走 HTTP 也没有 API key,单独分一条路:
         // 把整轮 messages 拼成单 prompt,丢给 PhoneClawClient 的 URL-scheme RPC。
@@ -32,7 +41,7 @@ enum LLMClient {
             return try await PhoneClawClient.ask(prompt: prompt)
         }
 
-        guard let apiKey = store.apiKey(for: engine), !apiKey.isEmpty else {
+        guard let apiKey = engines.apiKey(for: engine), !apiKey.isEmpty else {
             throw ClientError.missingKey
         }
 
@@ -46,8 +55,8 @@ enum LLMClient {
 
     // MARK: - OpenAI / Gemini / Ollama / LM Studio / OpenAI-compatible
 
-    private static func openAICompatibleCall(baseURL: String, apiKey: String,
-                                             model: String, messages: [Message]) async throws -> String {
+    private func openAICompatibleCall(baseURL: String, apiKey: String,
+                                      model: String, messages: [Message]) async throws -> String {
         guard var url = URL(string: baseURL) else { throw ClientError.malformed }
         url = url.appendingPathComponent("chat/completions")
 
@@ -83,8 +92,8 @@ enum LLMClient {
 
     // MARK: - Anthropic native /v1/messages
 
-    private static func claudeCall(baseURL: String, apiKey: String,
-                                   model: String, messages: [Message]) async throws -> String {
+    private func claudeCall(baseURL: String, apiKey: String,
+                            model: String, messages: [Message]) async throws -> String {
         guard var url = URL(string: baseURL) else { throw ClientError.malformed }
         url = url.appendingPathComponent("v1/messages")
 

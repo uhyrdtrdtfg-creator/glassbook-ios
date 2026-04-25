@@ -20,23 +20,28 @@ struct LLMClassifierParseTests {
     /// `categorize` through an injection point. Instead, test the observable
     /// side effect: an empty rows list should never crash.
     @Test func emptyInputReturnsEmpty() async throws {
-        let result = try await LLMClassifier.categorize([])
+        // Item 18 服务层 DI · classifier 现在是实例方法,通过本地 stack 调用。
+        let engines = AIEngineStore.shared
+        let classifier = LLMClassifier(engines: engines, client: LLMClient(engines: engines))
+        let result = try await classifier.categorize([])
         #expect(result.isEmpty)
     }
 
     /// Apple Intelligence route has no HTTP endpoint yet, so `categorize`
     /// should fail fast with `.notConfigured` rather than hang.
     @Test func appleIntelligenceRoutesToNotConfigured() async {
-        let prev = AIEngineStore.shared.selected
-        AIEngineStore.shared.selectEngine(.appleIntelligence)
-        defer { AIEngineStore.shared.selectEngine(prev) }
+        let engines = AIEngineStore.shared
+        let classifier = LLMClassifier(engines: engines, client: LLMClient(engines: engines))
+        let prev = engines.selected
+        engines.selectEngine(.appleIntelligence)
+        defer { engines.selectEngine(prev) }
         let row = PendingImportRow(
             id: UUID(), merchant: "test", amountCents: 100,
             categoryID: .other, timestamp: .now, source: .alipay,
             isDuplicate: false, isSelected: true, note: nil
         )
         do {
-            _ = try await LLMClassifier.categorize([row])
+            _ = try await classifier.categorize([row])
             Issue.record("Should have thrown .notConfigured")
         } catch LLMClassifier.Failure.notConfigured {
             // expected

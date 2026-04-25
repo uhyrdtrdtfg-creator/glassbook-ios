@@ -14,6 +14,8 @@ import SwiftUI
 struct RichTxFormView: View {
 
     @Environment(AIEngineStore.self) private var aiEngines
+    // Item 18 服务层 · 通过 env 拿 LLMClassifier 实例做 AI 简化商户名。
+    @Environment(AppServices.self) private var services
 
     struct Values {
         var kind: Transaction.Kind = .expense
@@ -351,7 +353,7 @@ struct RichTxFormView: View {
             let raw = values.merchant
             isSimplifying = true
             Task {
-                let simplified = await LLMClassifier.simplifyMerchantName(raw: raw)
+                let simplified = await services.classifier.simplifyMerchantName(raw: raw)
                 await MainActor.run {
                     if let s = simplified {
                         values.merchant = s

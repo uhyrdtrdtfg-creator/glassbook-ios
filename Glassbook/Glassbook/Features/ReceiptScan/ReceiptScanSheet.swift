@@ -8,6 +8,8 @@ struct ReceiptScanSheet: View {
     var onConfirm: (ReceiptOCRService.Result) -> Void
     var onCancel: () -> Void
 
+    // Item 18 服务层 · 通过 env 拿 ReceiptOCRService 实例,不再 `.shared` 反查。
+    @Environment(AppServices.self) private var services
     @State private var step: Step = .entry
     @State private var pickerItem: PhotosPickerItem?
     @State private var image: UIImage?
@@ -105,7 +107,7 @@ struct ReceiptScanSheet: View {
         errorMessage = nil
         withAnimation { step = .scanning }
         do {
-            let r = try await ReceiptOCRService.recognize(image: ui)
+            let r = try await services.receiptOCR.recognize(image: ui)
             await MainActor.run {
                 self.result = r
                 withAnimation { self.step = .review }

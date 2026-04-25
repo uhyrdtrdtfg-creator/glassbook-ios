@@ -10,7 +10,9 @@ import Foundation
 /// button that runs this against whichever engine is selected in AIEngineStore.
 /// Failure paths (no API key / network / timeout / bad JSON) keep the existing
 /// `MerchantClassifier` guesses and surface an error inline.
-enum LLMClassifier {
+///
+/// Item 18 · 服务层 DI — engines + client are init-injected, no `.shared` reads.
+final class LLMClassifier {
 
     enum Failure: LocalizedError {
         case notConfigured
@@ -28,12 +30,20 @@ enum LLMClassifier {
         }
     }
 
+    private let engines: AIEngineStore
+    private let client: LLMClient
+
+    init(engines: AIEngineStore, client: LLMClient) {
+        self.engines = engines
+        self.client = client
+    }
+
     /// Prompt design:
     /// - 系统提示固定所有可选分类,避免模型创造新类别。
     /// - 给出每个类别的日常例子,降低误判 (如"阿婆牛杂" → food 而不是 other)。
     /// - 严格要求 JSON 输出,禁止解释。
     /// - 对输入每条 merchant 用独立 id 编号,避免模型输出顺序错位。
-    private static let systemPrompt: String = """
+    private static let systemPromptTemplate: String = """
     你是一个中文记账分类助手。我会给你一批刚从支付账单截屏 OCR 出来的\
     商户条目,你要把每一条归到下面 9 个类别之一,**绝对不允许**创造新类别。\
 
@@ -56,11 +66,10 @@ enum LLMClassifier {
 
     /// Main entry. Runs synchronously against the selected engine. Caller
     /// expected to show a spinner — bulk calls typically take 2-6 seconds.
-    static func categorize(_ rows: [PendingImportRow]) async throws -> [UUID: Category.Slug] {
+    func categorize(_ rows: [PendingImportRow]) async throws -> [UUID: Category.Slug] {
         guard !rows.isEmpty else { return [:] }
 
-        let store = AIEngineStore.shared
-        let engine = store.selected
+        let engine = engines.selected
 
         // Apple Intelligence has no public text API yet, so it can't classify —
         // surface as `.notConfigured` to push users to a real BYO engine.
@@ -83,6 +92,10 @@ enum LLMClassifier {
         let payload = try JSONEncoder().encode(items)
         let payloadString = String(data: payload, encoding: .utf8) ?? "[]"
 
+        // system prompt 也过 PII (item 12 余项) — 模板本身写死了类别,但保险起见过一遍,
+        // 防御未来有人把用户商户名喂进 prompt 模板。
+        let systemPrompt = PIIRedactor.redact(Self.systemPromptTemplate)
+
         let userPrompt = """
         请给下面这批商户分类,输出严格按系统提示要求的 JSON:
         \(payloadString)
@@ -90,7 +103,7 @@ enum LLMClassifier {
 
         let reply: String
         do {
-            reply = try await LLMClient.chat(
+            reply = try await client.chat(
                 engine: engine,
                 messages: [
                     .init(role: "system", content: systemPrompt),
@@ -107,7 +120,7 @@ enum LLMClassifier {
             throw Failure.networkFailed(error.localizedDescription)
         }
 
-        return try parse(reply: reply, rows: rows)
+        return try Self.parse(reply: reply, rows: rows)
     }
 
     // MARK: - Response parsing
@@ -143,13 +156,13 @@ enum LLMClassifier {
     /// no engine configured / network fails / model misbehaves — caller
     /// silently keeps the original string.
     ///
-    /// Kept on this enum (not LLMClient) because the prompt is tuned and
+    /// Kept on this type (not LLMClient) because the prompt is tuned and
     /// post-processing (quote/whitespace strip) lives here.
-    static func simplifyMerchantName(raw: String) async -> String? {
+    func simplifyMerchantName(raw: String) async -> String? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
-        let engine = AIEngineStore.shared.selected
+        let engine = engines.selected
         if engine == .appleIntelligence { return nil }
 
         // §12 脱敏 · 用户可能手工把地址塞进了 merchant 字段 (比如「家附近
@@ -170,7 +183,7 @@ enum LLMClassifier {
 
         let reply: String
         do {
-            reply = try await LLMClient.chat(
+            reply = try await client.chat(
                 engine: engine,
                 messages: [.init(role: "user", content: userPrompt)]
             )

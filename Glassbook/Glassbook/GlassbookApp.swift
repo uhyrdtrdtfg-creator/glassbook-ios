@@ -10,9 +10,15 @@ struct GlassbookApp: App {
     @State private var store: AppStore
     @State private var lock = AppLock()
     // Item 18 · 去单例 — reuse the same instance as `.shared` so the env-injected
-    // store and the service-layer fallback share UserDefaults / Keychain state.
+    // store and any Watch / Widget singleton readers share UserDefaults + Keychain.
     @State private var aiEngines = AIEngineStore.shared
     @State private var webhooks = WebhookStore.shared
+    // Item 18 服务层 · 把 LLM 栈打包成一个容器,通过 environment 派给视图,
+    // 视图调用 services.classifier / services.receiptOCR / services.advisorChat 等。
+    @State private var services = AppServices(
+        engines: AIEngineStore.shared,
+        webhooks: WebhookStore.shared
+    )
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -30,6 +36,7 @@ struct GlassbookApp: App {
                     .environment(lock)
                     .environment(aiEngines)
                     .environment(webhooks)
+                    .environment(services)
                     .preferredColorScheme(.light)
                     .tint(AppColors.ink)
 

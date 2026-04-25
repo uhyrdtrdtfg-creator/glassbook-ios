@@ -7,6 +7,8 @@ struct SmartImportConfirmScreen: View {
     @Binding var rows: [PendingImportRow]
     var onCancel: () -> Void
     var onConfirm: () -> Void
+    // Item 18 服务层 · 通过 env 拿 LLM 栈,不再静态 LLMClassifier.categorize。
+    @Environment(AppServices.self) private var services
     @State private var editingRowID: PendingImportRow.ID?
     @State private var aiClassifying: Bool = false
     @State private var aiError: String?
@@ -151,7 +153,7 @@ struct SmartImportConfirmScreen: View {
         aiAppliedCount = 0
         defer { aiClassifying = false }
         do {
-            let assigned = try await LLMClassifier.categorize(rows)
+            let assigned = try await services.classifier.categorize(rows)
             // Build diff: only rows whose category actually changed.
             var diff: [AIClassifyDiffItem] = []
             for row in rows {
